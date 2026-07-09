@@ -237,8 +237,10 @@
 
   let bestScore = 0;
 
-  function svgWrap(inner, vb){
-    return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible" filter="url(#wobble)">${inner}</svg>`;
+  // 1. 修改 svgWrap，增加第三個參數用來自由控制是否啟用抖動濾鏡
+  function svgWrap(inner, vb, useFilter = true){
+    const filterStr = useFilter ? 'filter="url(#wobble)"' : '';
+    return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible" ${filterStr}>${inner}</svg>`;
   }
   function shade(hex, amt){
     const n = parseInt(hex.slice(1),16);
@@ -290,6 +292,7 @@
   const JACKET_COLORS = ["#2c3e50","#1f1f1f","#4a3b2a","#5c2626","#374a3a"];
   let vehicleUid = 0;
 
+  // 1. 車子調用 svgWrap 時傳入 false，徹底解決越近越模糊的問題
   function vehicleSVG(type){
     const uid = 'v'+(vehicleUid++);
     if(type==='car'){
@@ -324,7 +327,7 @@
         </g>
         <circle cx="16" cy="60" r="4" fill="#cfd6da"/>
         <circle cx="144" cy="60" r="4" fill="#cfd6da"/>
-      `, "0 0 160 110");
+      `, "0 0 160 110", false);
     }
     const jc = JACKET_COLORS[Math.floor(Math.random()*JACKET_COLORS.length)];
     return svgWrap(`
@@ -360,7 +363,7 @@
       <path d="M49 12 L58 6" stroke="#ffffff" stroke-width="2" opacity=".5" stroke-linecap="round"/>
       <rect x="28" y="38" width="14" height="20" rx="6" fill="url(#jacket${uid})"/>
       <rect x="78" y="38" width="14" height="20" rx="6" fill="url(#jacket${uid})"/>
-    `, "0 -10 120 130");
+    `, "0 -10 120 130", false);
   }
 
   function buildingsMarkup(seedOffset){
@@ -396,11 +399,24 @@
   let lastTime = 0;
   let dashPendingGap = 0;
 
+  // 2. 新增控制障礙物動態時間與螢幕適應所需的變數
+  let dashStartAt = 0;
+  let dashDuration = 0;
+  let shelterDefaultTopPercent = 62; // 預設安全屋頂部百分比位置
+
   function difficultyFactor(){ return Math.min(1.4, 1 + distance/420); }
 
   function pickShelter(){
     const t = shelterTypes[Math.floor(Math.random()*shelterTypes.length)];
     shelter.innerHTML = SHELTER_ART[t];
+  }
+
+  // 測量當前解析度下，靜止掩體的精準 Top 百分比，確保衝刺完對接不閃爍
+  function measureShelterTop() {
+    const stageH = $('#stage').clientHeight;
+    if(stageH > 0) {
+      shelterDefaultTopPercent = (shelter.offsetTop / stageH) * 100;
+    }
   }
 
   function resetGame(){
@@ -411,11 +427,19 @@
     player.className = ''; isHiding = false;
     pickShelter();
     shelter.className='';
+    
+    // 重置掩體原生的 CSS 定位
+    shelter.style.left = '4%';
+    shelter.style.top = 'auto';
+    shelter.style.bottom = '15%';
+    shelter.style.transform = 'none';
+
     state = STATE.SHELTERED;
     lastSpawn = performance.now();
     flashEl.className='';
     speedlinesEl.className='';
     btnDash.disabled = false;
+    setTimeout(measureShelterTop, 50); // 稍作延遲確保 DOM 渲染完畢
   }
 
   function startGame(){
@@ -460,8 +484,6 @@
     el.style.left = '50%';
     el.style.top = '18%';
     vlayer.appendChild(el);
-    // lane stays on the paved road (the road's left boundary at this depth is ~28%) —
-    // scooters hug just inside that edge, cars sit a little more toward the middle
     const laneEndX = (type==='scooter' ? 31 : 37) + (Math.random()*4-2);
     vehicles.push({ el, type, spawnAt: now, duration, impactAt: now+duration, resolved:false, laneEndX });
   }
@@ -475,7 +497,7 @@
       const scale = 0.12 + ease*1.55;
       const yTop = 18, yEnd = 87;
       const y = yTop + (yEnd-yTop)*ease;
-      const xStart = 50, xEnd = v.laneEndX; // vehicle path fixed to the road lane
+      const xStart = 50, xEnd = v.laneEndX;
       const x = xStart + (xEnd-xStart)*ease;
       v.el.style.transform = `translate(-50%,-50%) scale(${scale.toFixed(3)})`;
       v.el.style.left = x+'%';
@@ -506,7 +528,7 @@
 
   function setHiding(v){
     if(state===STATE.OVER) return;
-    if(state===STATE.DASHING) return; // committed, can't duck mid-dash
+    if(state===STATE.DASHING) return;
     isHiding = v;
     player.classList.toggle('hiding', v);
     hidezoneEl.classList.toggle('show', v);
@@ -515,27 +537,80 @@
     btnLeft.classList.toggle('pressed', v);
   }
 
+  // 2. 改造衝刺邏輯：處理舊障礙物退場，新障礙物前置
   function pressDash(){
     if(state!==STATE.SHELTERED || isHiding) return;
     state = STATE.DASHING;
     dodgedCount = 0; streakEl.textContent='';
     const gap = 14 + Math.random()*46;
     const dur = 550 + gap*16;
-    dashEndAt = performance.now()+dur;
+    
+    dashDuration = dur;
+    dashStartAt = performance.now();
+    dashEndAt = dashStartAt + dur;
+    
     player.classList.add('dashing');
     speedlinesEl.classList.add('on');
-    shelter.className = 'slide-out';
+
+    // 複製當前的掩體製成一個獨立臨時工，往左下角飛走拋在腦後
+    const oldShelter = shelter.cloneNode(true);
+    oldShelter.id = 'shelter-old';
+    oldShelter.style.position = 'absolute';
+    oldShelter.style.left = '4%';
+    oldShelter.style.bottom = '15%';
+    oldShelter.style.width = '23%';
+    oldShelter.style.transition = 'transform .45s ease-in, opacity .45s ease-in';
+    $('#stage').appendChild(oldShelter);
+    setTimeout(() => {
+      oldShelter.style.transform = 'translate(-120%, 40%) scale(0.85)';
+      oldShelter.style.opacity = '0';
+    }, 10);
+    setTimeout(() => oldShelter.remove(), 500);
+
+    // 把原本的實體換成新外觀，並立刻拉到遠方的機車起始位置（消逝點）
+    pickShelter();
+    updateShelterAnimation(0);
+
     dashPendingGap = gap;
     btnDash.disabled = true;
   }
 
+  // 2. 動態渲染新障礙物從遠方滾動靠近的 JS 動畫
+  function updateShelterAnimation(dashP) {
+    // 使用 Cubic Ease-In (三次方曲線)，在遠處移動步伐極小，營造出速度比迎面而來的車子還要慢的透視體感
+    const ease = Math.pow(dashP, 3);
+    
+    const startLeft = 44; // 遠方馬路路口左側
+    const endLeft = 4;    // 最終玩家身邊位置
+    const startTop = 20;  // 機車起始的地平線高度
+    const endTop = shelterDefaultTopPercent; // 精準對齊原本靜止的高度
+    const startScale = 0.05; // 遠處看起來極小
+    const endScale = 1;
+
+    const currentLeft = startLeft + (endLeft - startLeft) * ease;
+    const currentTop = startTop + (endTop - startTop) * ease;
+    const currentScale = startScale + (endScale - startScale) * ease;
+
+    shelter.style.bottom = 'auto'; // 解除原生 bottom 的限制
+    shelter.style.left = currentLeft + '%';
+    shelter.style.top = currentTop + '%';
+    shelter.style.transform = `scale(${currentScale})`;
+  }
+
+  // 2. 衝刺結束，完美切換回原本的靜止狀態
   function finishDash(){
     distance += dashPendingGap;
     scoreEl.textContent = Math.floor(distance)+'m';
     player.classList.remove('dashing');
     speedlinesEl.classList.remove('on');
-    pickShelter();
-    shelter.className = 'slide-in';
+    
+    // 還原 shelter 原生的 CSS 定位屬性
+    shelter.style.left = '4%';
+    shelter.style.top = 'auto';
+    shelter.style.bottom = '15%';
+    shelter.style.transform = 'none';
+    shelter.className = '';
+    
     state = STATE.SHELTERED;
     btnDash.disabled = false;
   }
@@ -546,6 +621,12 @@
     if(state===STATE.SHELTERED){ trySpawn(now); }
     if(state===STATE.DASHING){
       trySpawn(now);
+      
+      // 2. 衝刺時持續計算進度並重新整理障礙物空間位置
+      let dashP = (now - dashStartAt) / dashDuration;
+      if(dashP > 1) dashP = 1;
+      updateShelterAnimation(dashP);
+
       if(now >= dashEndAt){ finishDash(); }
     }
     updateVehicles(now);
@@ -573,6 +654,7 @@
   $('#retry-btn').addEventListener('click', startGame);
 
   pickShelter();
+  setTimeout(measureShelterTop, 100);
 })();
 </script>
 </body>
