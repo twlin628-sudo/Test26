@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>嘉興路行人地獄</title>
+<style>
+  :root{
+    --sky-top:#9fb0bd;
+    --sky-bottom:#c9cdd1;
+    --road:#4b4c4e;
+    --road-dark:#3c3d3f;
+    --line-yellow:#f0c33c;
+    --shutter-cream:#e6ddc4;
+    --shutter-red:#8a2f2f;
+    --sign-blue:#1f3a5c;
+    --ink:#2a2724;
+    --paper:#f4efe2;
+    --danger:#c94c3f;
+    --safe:#4c7a5e;
+    --shadow:#00000055;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--ink); font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+    touch-action:none; user-select:none;
+  }
+  #stage{
+    position:relative; width:100%; height:100%; max-width:520px; margin:0 auto;
+    background:linear-gradient(var(--sky-top), var(--sky-bottom) 32%);
+    overflow:hidden;
+  }
+  svg.defs{position:absolute; width:0; height:0;}
+  #skyline{position:absolute; left:0; right:0; top:8%; height:14%; opacity:.55;}
+  .buildings{position:absolute; top:20%; bottom:0; width:34%;}
+  #buildings-left{left:0;}
+  #buildings-right{right:0; transform:scaleX(-1);}
+  #road{
+    position:absolute; left:50%; top:20%; bottom:0; width:60%;
+    transform:translateX(-50%);
+    background:linear-gradient(var(--road-dark), var(--road) 40%);
+    clip-path:polygon(38% 0%, 62% 0%, 92% 100%, 8% 100%);
+  }
+  #centerline{
+    position:absolute; left:50%; top:0; bottom:0; width:6px; transform:translateX(-50%);
+    background:repeating-linear-gradient(var(--line-yellow), var(--line-yellow) 22px, transparent 22px, transparent 22px);
+    clip-path:inherit;
+  }
+  #shoulder{
+    position:absolute; left:8%; top:20%; bottom:0; width:22%;
+    clip-path:polygon(60% 0%, 100% 0%, 82% 100%, 0% 100%);
+    background:linear-gradient(rgba(255,255,255,0.03), rgba(0,0,0,0.15));
+  }
+  #vlayer{position:absolute; inset:0; overflow:hidden;}
+  .vehicle{position:absolute; will-change:transform; filter:drop-shadow(0 4px 6px var(--shadow));}
+
+  #shelter{
+    position:absolute; left:4%; bottom:15%; width:23%;
+    transform-origin:bottom center;
+    transition:transform .18s ease;
+  }
+  #shelter.slide-out{ transform:translateX(-140%) scale(.85); transition:transform .55s ease-in; }
+  #shelter.slide-in{ animation:shelterIn .5s cubic-bezier(.25,.7,.3,1); }
+  @keyframes shelterIn{
+    0%{ transform:translate(150%,-190%) scale(.1); opacity:0; }
+    55%{ opacity:1; }
+    100%{ transform:translate(0,0) scale(1); opacity:1; }
+  }
+
+  /* player: exposed right at the road's edge by default, tucks left into hiding when held */
+  #player{
+    position:absolute; left:26%; bottom:12%; width:10%;
+    transition:left .2s ease, transform .2s ease;
+    z-index:20;
+  }
+  #player.hiding{ left:13%; transform:scale(.93) rotate(-2deg); }
+  #player.dashing{ animation:dashBob .35s linear infinite; }
+  @keyframes dashBob{ 0%{transform:translateY(0);} 50%{transform:translateY(-4%);} 100%{transform:translateY(0);} }
+  #player.dead{ transform:rotate(94deg) translateY(8%); transition:transform .4s ease-in; }
+
+  #hidezone{
+    position:absolute; left:1%; bottom:10%; width:27%; height:24%;
+    border:2px dashed #ffffff30; border-radius:14px; opacity:0; pointer-events:none; z-index:5;
+    transition:opacity .2s;
+  }
+  #hidezone.show{opacity:1;}
+
+  #speedlines{position:absolute; inset:0; opacity:0; pointer-events:none; z-index:15;
+    background:repeating-linear-gradient(100deg, rgba(255,255,255,0.0) 0 18px, rgba(255,255,255,0.10) 18px 20px);
+  }
+  #speedlines.on{opacity:1; animation:slide .25s linear infinite;}
+  @keyframes slide{ from{background-position:0 0;} to{background-position:-200px 0;} }
+
+  #flash{position:absolute; inset:0; background:var(--danger); opacity:0; pointer-events:none; z-index:40;}
+  #flash.hit{animation:flash .4s ease-out;}
+  @keyframes flash{ 0%{opacity:.85;} 100%{opacity:0;} }
+
+  #hud{
+    position:absolute; top:0; left:0; right:0; z-index:30;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:14px 16px; color:var(--paper); text-shadow:0 2px 4px #0006;
+  }
+  #hud .label{font-size:11px; letter-spacing:2px; opacity:.75;}
+  #hud .value{font-family:"Courier New",monospace; font-size:26px; font-weight:700;}
+  #streak{position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:30;
+    color:var(--paper); font-size:12px; letter-spacing:3px; opacity:.85; text-shadow:0 2px 4px #0006;}
+
+  #controls{
+    position:absolute; bottom:0; left:0; right:0; z-index:30;
+    display:flex; gap:12px; padding:14px; padding-bottom:calc(14px + env(safe-area-inset-bottom));
+  }
+  .btn{
+    flex:1; border:none; border-radius:16px; padding:18px 10px; font-size:20px; font-weight:700;
+    letter-spacing:4px; color:var(--paper); font-family:inherit; position:relative; overflow:hidden;
+    box-shadow:0 6px 0 #00000055, 0 8px 14px #00000044;
+    transform:translateY(0); transition:transform .06s, box-shadow .06s;
+  }
+  .btn:active, .btn.pressed{transform:translateY(5px); box-shadow:0 1px 0 #00000055, 0 2px 6px #00000044;}
+  #btn-left{background:linear-gradient(#3f6e56,var(--safe));}
+  #btn-dash{background:linear-gradient(#a8583f,#8a3d2b);}
+  #btn-dash:disabled{opacity:.4;}
+  .btn small{display:block; font-size:10px; letter-spacing:2px; font-weight:400; opacity:.8; margin-top:4px;}
+
+  .overlay{
+    position:absolute; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:30px;
+    background:radial-gradient(ellipse at center, #1a1a1acc, #000000e6);
+    color:var(--paper);
+  }
+  .overlay.hidden{display:none;}
+  .overlay h1{font-size:30px; margin:0 0 6px; letter-spacing:4px;}
+  .overlay h1 span{color:var(--line-yellow);}
+  .overlay p{font-size:13px; line-height:1.9; opacity:.85; max-width:320px; margin:6px 0 18px;}
+  .overlay .big{font-family:"Courier New",monospace; font-size:52px; font-weight:700; color:var(--line-yellow); margin:4px 0;}
+  .overlay .small{font-size:12px; opacity:.7; margin-bottom:20px;}
+  .startBtn{
+    border:none; border-radius:20px; padding:16px 42px; font-size:18px; font-weight:700; letter-spacing:6px;
+    color:var(--paper); background:linear-gradient(#a8583f,#8a3d2b); box-shadow:0 6px 0 #00000055;
+    font-family:inherit;
+  }
+  .startBtn:active{transform:translateY(5px); box-shadow:none;}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <svg class="defs">
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.04" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4"/>
+    </filter>
+  </svg>
+
+  <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
+    <rect x="0" y="20" width="30" height="40" fill="#7d8a94"/>
+    <rect x="34" y="10" width="22" height="50" fill="#8994a0"/>
+    <rect x="60" y="26" width="18" height="34" fill="#7d8a94"/>
+    <rect x="82" y="4" width="26" height="56" fill="#94a0aa"/>
+    <rect x="130" y="18" width="20" height="42" fill="#7d8a94"/>
+    <rect x="160" y="0" width="30" height="60" fill="#8994a0"/>
+    <rect x="200" y="22" width="16" height="38" fill="#7d8a94"/>
+    <rect x="230" y="12" width="24" height="48" fill="#94a0aa"/>
+    <rect x="270" y="24" width="18" height="36" fill="#7d8a94"/>
+    <rect x="300" y="6" width="28" height="54" fill="#8994a0"/>
+    <rect x="340" y="20" width="20" height="40" fill="#7d8a94"/>
+    <rect x="370" y="14" width="24" height="46" fill="#94a0aa"/>
+  </svg>
+
+  <div class="buildings" id="buildings-left"></div>
+  <div class="buildings" id="buildings-right"></div>
+
+  <div id="road">
+    <div id="centerline"></div>
+  </div>
+  <div id="shoulder"></div>
+
+  <div id="vlayer"></div>
+  <div id="speedlines"></div>
+  <div id="hidezone"></div>
+
+  <div id="shelter"></div>
+  <div id="player"></div>
+
+  <div id="flash"></div>
+
+  <div id="hud">
+    <div>
+      <div class="label">距離</div>
+      <div class="value" id="score">0<span style="font-size:14px">m</span></div>
+    </div>
+    <div style="text-align:right">
+      <div class="label">最佳</div>
+      <div class="value" id="best">0<span style="font-size:14px">m</span></div>
+    </div>
+  </div>
+  <div id="streak"></div>
+
+  <div id="controls">
+    <button class="btn" id="btn-left">閃<small>按住＝躲進遮蔽物</small></button>
+    <button class="btn" id="btn-dash">衝<small>賭一把前進</small></button>
+  </div>
+
+  <div class="overlay" id="start-overlay">
+    <h1>嘉興路<span>行人地獄</span></h1>
+    <p>竹北嘉興路沒有人行道，走在路邊本來就跟車流搶道。<br>
+       按住「閃」躲到遮蔽物後面才安全，放開就回到路邊、隨時可能被貼身而過的車撞到。<br>
+       車少的空檔按「衝」賭一把跑到下一個遮蔽物，衝刺途中沒辦法再躲。</p>
+    <button class="startBtn" id="start-btn">開始</button>
+  </div>
+
+  <div class="overlay hidden" id="over-overlay">
+    <h1 style="color:var(--danger)">你被撞飛了</h1>
+    <div class="big" id="final-score">0m</div>
+    <div class="small" id="best-note"></div>
+    <button class="startBtn" id="retry-btn">再走一次</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const $ = (s)=>document.querySelector(s);
+  const vlayer = $('#vlayer');
+  const player = $('#player');
+  const shelter = $('#shelter');
+  const scoreEl = $('#score');
+  const bestEl = $('#best');
+  const streakEl = $('#streak');
+  const flashEl = $('#flash');
+  const speedlinesEl = $('#speedlines');
+  const hidezoneEl = $('#hidezone');
+  const startOverlay = $('#start-overlay');
+  const overOverlay = $('#over-overlay');
+  const btnLeft = $('#btn-left');
+  const btnDash = $('#btn-dash');
+
+  let bestScore = 0;
+
+  function svgWrap(inner, vb){
+    return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible" filter="url(#wobble)">${inner}</svg>`;
+  }
+  function shade(hex, amt){
+    const n = parseInt(hex.slice(1),16);
+    let r=(n>>16)+amt, g=(n>>8&0xff)+amt, b=(n&0xff)+amt;
+    r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+    return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+  }
+
+  const PLAYER_SVG = svgWrap(`
+    <ellipse cx="30" cy="92" rx="16" ry="5" fill="#00000030"/>
+    <path d="M18 92 L20 55 Q20 40 30 40 Q40 40 40 55 L42 92 Z" fill="#3a3f47"/>
+    <path d="M20 55 Q30 62 40 55" stroke="#2a2e34" stroke-width="2" fill="none"/>
+    <circle cx="30" cy="27" r="12" fill="#caa07a"/>
+    <path d="M18 22 Q30 8 42 22 Q42 14 30 12 Q18 14 18 22Z" fill="#2a2e34"/>
+    <rect x="10" y="50" width="8" height="24" rx="4" fill="#caa07a"/>
+    <rect x="42" y="50" width="8" height="24" rx="4" fill="#caa07a"/>
+    <rect x="22" y="88" width="7" height="14" rx="2" fill="#1f2226"/>
+    <rect x="31" y="88" width="7" height="14" rx="2" fill="#1f2226"/>
+  `, "0 0 60 105");
+
+  const SHELTER_ART = {
+    car: svgWrap(`
+      <ellipse cx="60" cy="80" rx="52" ry="8" fill="#00000035"/>
+      <path d="M12 78 L16 44 Q18 30 40 28 L84 28 Q104 30 106 46 L110 78 Z" fill="#c0c4c8"/>
+      <path d="M28 44 Q34 32 50 31 L80 31 Q94 32 98 45 L96 44 L30 44Z" fill="#8fa3ad"/>
+      <circle cx="34" cy="80" r="9" fill="#26282b"/>
+      <circle cx="90" cy="80" r="9" fill="#26282b"/>
+      <rect x="10" y="55" width="8" height="10" fill="#e8c94a"/>
+    `, "0 0 120 92"),
+    scooter: svgWrap(`
+      <ellipse cx="55" cy="78" rx="40" ry="7" fill="#00000035"/>
+      <path d="M20 78 Q18 55 34 50 L70 50 Q86 52 88 70 L88 78Z" fill="#41464d"/>
+      <circle cx="30" cy="78" r="10" fill="#1f2124"/>
+      <circle cx="78" cy="78" r="10" fill="#1f2124"/>
+      <rect x="58" y="30" width="6" height="22" rx="3" fill="#2a2d31"/>
+      <rect x="46" y="26" width="30" height="8" rx="4" fill="#2a2d31"/>
+    `, "0 0 100 90"),
+    plant: svgWrap(`
+      <ellipse cx="40" cy="86" rx="26" ry="6" fill="#00000030"/>
+      <path d="M20 60 L30 86 L58 86 L64 60Z" fill="#a3573a"/>
+      <path d="M20 60 L64 60 L60 52 L24 52Z" fill="#c46a45"/>
+      <path d="M42 55 Q20 40 24 15 Q40 30 42 55Z" fill="#4c7a4f"/>
+      <path d="M42 55 Q64 38 58 12 Q42 26 42 55Z" fill="#5d8f5c"/>
+      <path d="M42 55 Q46 26 30 8 Q50 14 46 40Q46 48 42 55Z" fill="#3f6a44"/>
+    `, "0 0 80 92"),
+  };
+
+  const CAR_COLORS = ["#c0392b","#e9e4d4","#37474f","#2a5c8a","#8a8f94"];
+  const JACKET_COLORS = ["#2c3e50","#1f1f1f","#4a3b2a","#5c2626","#374a3a"];
+  let vehicleUid = 0;
+
+  function vehicleSVG(type){
+    const uid = 'v'+(vehicleUid++);
+    if(type==='car'){
+      const c = CAR_COLORS[Math.floor(Math.random()*CAR_COLORS.length)];
+      const bodyTop = shade(c,-26), bodyBot = shade(c,14);
+      return svgWrap(`
+        <defs>
+          <linearGradient id="body${uid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="${bodyTop}"/>
+            <stop offset="0.55" stop-color="${c}"/>
+            <stop offset="1" stop-color="${bodyBot}"/>
+          </linearGradient>
+          <radialGradient id="lamp${uid}" cx="0.5" cy="0.4" r="0.7">
+            <stop offset="0" stop-color="#fff7d6"/>
+            <stop offset="1" stop-color="#e8c94a"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="80" cy="104" rx="66" ry="7" fill="#00000030"/>
+        <path d="M10 92 L14 46 Q18 14 60 10 L100 10 Q142 14 146 46 L150 92 Z" fill="url(#body${uid})" stroke="#00000030" stroke-width="2"/>
+        <path d="M34 46 Q40 22 62 20 L98 20 Q120 22 126 47 L120 46 L40 46Z" fill="#9fc3d6" opacity="0.88"/>
+        <path d="M40 24 L72 40" stroke="#ffffff" stroke-width="4" opacity="0.35" stroke-linecap="round"/>
+        <circle cx="38" cy="92" r="17" fill="#1b1d1f"/>
+        <circle cx="38" cy="92" r="7" fill="#5c6166"/>
+        <circle cx="122" cy="92" r="17" fill="#1b1d1f"/>
+        <circle cx="122" cy="92" r="7" fill="#5c6166"/>
+        <circle cx="27" cy="57" r="11" fill="url(#lamp${uid})" stroke="#00000020"/>
+        <circle cx="133" cy="57" r="11" fill="url(#lamp${uid})" stroke="#00000020"/>
+        <rect x="60" y="86" width="40" height="9" rx="2" fill="#eee7cf"/>
+        <g stroke="#00000035" stroke-width="2">
+          <line x1="66" y1="70" x2="94" y2="70"/>
+          <line x1="64" y1="76" x2="96" y2="76"/>
+        </g>
+        <circle cx="16" cy="60" r="4" fill="#cfd6da"/>
+        <circle cx="144" cy="60" r="4" fill="#cfd6da"/>
+      `, "0 0 160 110");
+    }
+    const jc = JACKET_COLORS[Math.floor(Math.random()*JACKET_COLORS.length)];
+    return svgWrap(`
+      <defs>
+        <linearGradient id="jacket${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${shade(jc,20)}"/>
+          <stop offset="1" stop-color="${shade(jc,-14)}"/>
+        </linearGradient>
+        <radialGradient id="headlamp${uid}" cx="0.5" cy="0.4" r="0.7">
+          <stop offset="0" stop-color="#fff7d6"/>
+          <stop offset="1" stop-color="#e8c94a"/>
+        </radialGradient>
+        <linearGradient id="visor${uid}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#7fa0b8"/>
+          <stop offset="1" stop-color="#28323c"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="60" cy="120" rx="46" ry="7" fill="#00000030"/>
+      <circle cx="60" cy="112" r="21" fill="#161819"/>
+      <circle cx="60" cy="112" r="10" fill="#4a4f54"/>
+      <circle cx="60" cy="112" r="3" fill="#7a8085"/>
+      <path d="M40 108 Q42 76 60 74 Q78 76 80 108Z" fill="#2c2f33"/>
+      <rect x="18" y="68" width="84" height="10" rx="5" fill="#22252a"/>
+      <circle cx="16" cy="73" r="8" fill="#22252a"/>
+      <circle cx="104" cy="73" r="8" fill="#22252a"/>
+      <circle cx="16" cy="73" r="3.4" fill="#8fa3ad"/>
+      <circle cx="104" cy="73" r="3.4" fill="#8fa3ad"/>
+      <circle cx="60" cy="64" r="14" fill="url(#headlamp${uid})" stroke="#00000025"/>
+      <path d="M44 32 Q60 12 76 32 Q78 44 60 46 Q42 44 44 32Z" fill="url(#jacket${uid})"/>
+      <circle cx="60" cy="12" r="17" fill="#e8ba86"/>
+      <path d="M42 10 Q60 -8 78 10 Q80 0 60 -2 Q40 0 42 10Z" fill="#20252b"/>
+      <path d="M47 11 Q60 19 73 11 L71 20 Q60 26 49 20Z" fill="url(#visor${uid})"/>
+      <path d="M49 12 L58 6" stroke="#ffffff" stroke-width="2" opacity=".5" stroke-linecap="round"/>
+      <rect x="28" y="38" width="14" height="20" rx="6" fill="url(#jacket${uid})"/>
+      <rect x="78" y="38" width="14" height="20" rx="6" fill="url(#jacket${uid})"/>
+    `, "0 -10 120 130");
+  }
+
+  function buildingsMarkup(seedOffset){
+    let s = '';
+    for(let i=0;i<5;i++){
+      const y = i*90;
+      const shutter = (i%2===0) ? 'var(--shutter-cream)' : '#d7cba8';
+      s += `
+        <g transform="translate(0 ${y})" filter="url(#wobble)">
+          <rect x="0" y="0" width="200" height="80" fill="${shutter}" stroke="#00000022" stroke-width="2"/>
+          ${Array.from({length:8}).map((_,k)=>`<line x1="${k*25}" y1="0" x2="${k*25}" y2="80" stroke="#00000018" stroke-width="3"/>`).join('')}
+          <rect x="10" y="-26" width="70" height="22" fill="${(i+seedOffset)%2===0?'var(--shutter-red)':'var(--sign-blue)'}"/>
+        </g>
+      `;
+    }
+    return `<svg viewBox="0 0 200 500" preserveAspectRatio="none" width="100%" height="100%" style="position:absolute;inset:0;">${s}</svg>`;
+  }
+  $('#buildings-left').innerHTML = buildingsMarkup(0);
+  $('#buildings-right').innerHTML = buildingsMarkup(1);
+  player.innerHTML = PLAYER_SVG;
+
+  const STATE = { IDLE:'idle', SHELTERED:'sheltered', DASHING:'dashing', OVER:'over' };
+  let state = STATE.IDLE;
+  let distance = 0;
+  let vehicles = [];
+  let isHiding = false;
+  let dashEndAt = 0;
+  let lastSpawn = 0;
+  let spawnInterval = 1300;
+  let dodgedCount = 0;
+  let shelterTypes = ['car','scooter','plant'];
+  let rafId = null;
+  let lastTime = 0;
+  let dashPendingGap = 0;
+
+  function difficultyFactor(){ return Math.min(1.4, 1 + distance/420); }
+
+  function pickShelter(){
+    const t = shelterTypes[Math.floor(Math.random()*shelterTypes.length)];
+    shelter.innerHTML = SHELTER_ART[t];
+  }
+
+  function resetGame(){
+    distance = 0; vehicles.forEach(v=>v.el.remove()); vehicles=[];
+    dodgedCount = 0; spawnInterval = 1300;
+    scoreEl.textContent = '0m';
+    streakEl.textContent = '';
+    player.className = ''; isHiding = false;
+    pickShelter();
+    shelter.className='';
+    state = STATE.SHELTERED;
+    lastSpawn = performance.now();
+    flashEl.className='';
+    speedlinesEl.className='';
+    btnDash.disabled = false;
+  }
+
+  function startGame(){
+    startOverlay.classList.add('hidden');
+    overOverlay.classList.add('hidden');
+    resetGame();
+    lastTime = performance.now();
+    if(rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function endGame(){
+    if(state===STATE.OVER) return;
+    state = STATE.OVER;
+    player.classList.remove('hiding');
+    player.classList.add('dead');
+    flashEl.classList.remove('hit'); void flashEl.offsetWidth; flashEl.classList.add('hit');
+    speedlinesEl.classList.remove('on');
+    const d = Math.floor(distance);
+    bestScore = Math.max(bestScore, d);
+    bestEl.textContent = bestScore+'m';
+    setTimeout(()=>{
+      $('#final-score').textContent = d+'m';
+      $('#best-note').textContent = d>=bestScore ? '新紀錄！' : ('最佳 '+bestScore+'m');
+      overOverlay.classList.remove('hidden');
+      cancelAnimationFrame(rafId);
+    }, 500);
+  }
+
+  function trySpawn(now){
+    if(now - lastSpawn < spawnInterval/difficultyFactor()) return;
+    lastSpawn = now;
+    const bigGap = Math.random() < 0.3;
+    spawnInterval = bigGap ? (2800 + Math.random()*2400) : (1500 + Math.random()*1100);
+    const type = Math.random()<0.62 ? 'scooter' : 'car';
+    const duration = (type==='scooter'? 2100:2500) / difficultyFactor();
+    const el = document.createElement('div');
+    el.className = 'vehicle';
+    el.innerHTML = vehicleSVG(type);
+    const w = type==='scooter'? 66:104;
+    el.style.width = w+'px';
+    el.style.left = '50%';
+    el.style.top = '18%';
+    vlayer.appendChild(el);
+    // lane stays on the paved road (the road's left boundary at this depth is ~28%) —
+    // scooters hug just inside that edge, cars sit a little more toward the middle
+    const laneEndX = (type==='scooter' ? 31 : 37) + (Math.random()*4-2);
+    vehicles.push({ el, type, spawnAt: now, duration, impactAt: now+duration, resolved:false, laneEndX });
+  }
+
+  function updateVehicles(now){
+    for(let i=vehicles.length-1;i>=0;i--){
+      const v = vehicles[i];
+      let p = (now - v.spawnAt)/v.duration;
+      if(p>1) p=1;
+      const ease = p*p*(3-2*p);
+      const scale = 0.12 + ease*1.55;
+      const yTop = 18, yEnd = 87;
+      const y = yTop + (yEnd-yTop)*ease;
+      const xStart = 50, xEnd = v.laneEndX; // vehicle path fixed to the road lane
+      const x = xStart + (xEnd-xStart)*ease;
+      v.el.style.transform = `translate(-50%,-50%) scale(${scale.toFixed(3)})`;
+      v.el.style.left = x+'%';
+      v.el.style.top = y+'%';
+      v.el.style.zIndex = 10+Math.floor(ease*10);
+
+      if(!v.resolved && now >= v.impactAt){
+        v.resolved = true;
+        resolveImpact(v, now);
+      }
+      if(now >= v.impactAt + 260){
+        v.el.remove();
+        vehicles.splice(i,1);
+      }
+    }
+  }
+
+  function resolveImpact(v, now){
+    if(state===STATE.DASHING){ endGame(); return; }
+    if(state!==STATE.SHELTERED) return;
+    if(isHiding){
+      dodgedCount++;
+      streakEl.textContent = dodgedCount>=3 ? ('安全躲過 x'+dodgedCount) : '';
+    } else {
+      endGame();
+    }
+  }
+
+  function setHiding(v){
+    if(state===STATE.OVER) return;
+    if(state===STATE.DASHING) return; // committed, can't duck mid-dash
+    isHiding = v;
+    player.classList.toggle('hiding', v);
+    hidezoneEl.classList.toggle('show', v);
+    if(v){ dodgedCount = 0; }
+    else { streakEl.textContent=''; }
+    btnLeft.classList.toggle('pressed', v);
+  }
+
+  function pressDash(){
+    if(state!==STATE.SHELTERED || isHiding) return;
+    state = STATE.DASHING;
+    dodgedCount = 0; streakEl.textContent='';
+    const gap = 14 + Math.random()*46;
+    const dur = 550 + gap*16;
+    dashEndAt = performance.now()+dur;
+    player.classList.add('dashing');
+    speedlinesEl.classList.add('on');
+    shelter.className = 'slide-out';
+    dashPendingGap = gap;
+    btnDash.disabled = true;
+  }
+
+  function finishDash(){
+    distance += dashPendingGap;
+    scoreEl.textContent = Math.floor(distance)+'m';
+    player.classList.remove('dashing');
+    speedlinesEl.classList.remove('on');
+    pickShelter();
+    shelter.className = 'slide-in';
+    state = STATE.SHELTERED;
+    btnDash.disabled = false;
+  }
+
+  function loop(now){
+    if(state===STATE.OVER) return;
+    lastTime = now;
+    if(state===STATE.SHELTERED){ trySpawn(now); }
+    if(state===STATE.DASHING){
+      trySpawn(now);
+      if(now >= dashEndAt){ finishDash(); }
+    }
+    updateVehicles(now);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function bindHold(btn, onDown, onUp){
+    btn.addEventListener('pointerdown', (e)=>{ e.preventDefault(); onDown(); btn.setPointerCapture && btn.setPointerCapture(e.pointerId); });
+    btn.addEventListener('pointerup', (e)=>{ e.preventDefault(); onUp(); });
+    btn.addEventListener('pointercancel', onUp);
+    btn.addEventListener('pointerleave', onUp);
+  }
+  bindHold(btnLeft, ()=>setHiding(true), ()=>setHiding(false));
+  btnDash.addEventListener('pointerdown', (e)=>{ e.preventDefault(); pressDash(); });
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A'){ if(!e.repeat) setHiding(true); }
+    if((e.key==='ArrowRight' || e.key===' ' || e.key==='d' || e.key==='D') && !e.repeat) pressDash();
+  });
+  window.addEventListener('keyup', (e)=>{
+    if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A') setHiding(false);
+  });
+
+  $('#start-btn').addEventListener('click', startGame);
+  $('#retry-btn').addEventListener('click', startGame);
+
+  pickShelter();
+})();
+</script>
+</body>
+</html>
