@@ -3,22 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄</title>
+<title>嘉興路行人地獄 - 傍晚重製版</title>
 <style>
   :root{
-    --sky-top:#9fb0bd;
-    --sky-bottom:#c9cdd1;
-    --road:#4b4c4e;
-    --road-dark:#3c3d3f;
-    --line-yellow:#f0c33c;
-    --shutter-cream:#e6ddc4;
-    --shutter-red:#8a2f2f;
-    --sign-blue:#1f3a5c;
-    --ink:#2a2724;
-    --paper:#f4efe2;
-    --danger:#c94c3f;
-    --safe:#4c7a5e;
-    --shadow:#00000055;
+    /* 🌆 傍晚尖峰時刻色系 */
+    --sky-top: #1a1025;      /* 夜幕紫 */
+    --sky-bottom: #d95a53;   /* 夕陽橘紅 */
+    --road: #3a3b40;         /* 柏油路基底 */
+    --road-dark: #1e1e24;    /* 遠方幽暗馬路 */
+    --line-yellow: #ffcc00;  /* 螢光雙黃線 */
+    --shutter-cream: #2d3436;/* 鐵門暗灰 */
+    --shutter-red: #d63031;  /* 招牌紅 */
+    --sign-blue: #0984e3;    /* 招牌藍 */
+    --ink: #000000;
+    --paper: #f5f6fa;
+    --danger: #e84118;
+    --safe: #00b894;
+    --shadow: rgba(0, 0, 0, 0.6);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{
@@ -30,141 +31,160 @@
     position:relative; width:100%; height:100%; max-width:520px; margin:0 auto;
     background:linear-gradient(var(--sky-top), var(--sky-bottom) 32%);
     overflow:hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8) inset;
   }
   svg.defs{position:absolute; width:0; height:0;}
-  #skyline{position:absolute; left:0; right:0; top:8%; height:14%; opacity:.55;}
-  .buildings{position:absolute; top:20%; bottom:0; width:34%;}
+  
+  /* 城市天際線微光 */
+  #skyline{position:absolute; left:0; right:0; top:8%; height:14%; opacity:.8;}
+  
+  .buildings{position:absolute; top:20%; bottom:0; width:34%; z-index:2;}
   #buildings-left{left:0;}
   #buildings-right{right:0; transform:scaleX(-1);}
+  
+  /* 馬路透視與漸層 */
   #road{
     position:absolute; left:50%; top:20%; bottom:0; width:60%;
     transform:translateX(-50%);
-    background:linear-gradient(var(--road-dark), var(--road) 40%);
+    background:linear-gradient(var(--road-dark) 0%, var(--road) 60%, #4a4b50 100%);
     clip-path:polygon(38% 0%, 62% 0%, 92% 100%, 8% 100%);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
   }
   #centerline{
-    position:absolute; left:50%; top:0; bottom:0; width:6px; transform:translateX(-50%);
-    background:repeating-linear-gradient(var(--line-yellow), var(--line-yellow) 22px, transparent 22px, transparent 22px);
+    position:absolute; left:50%; top:0; bottom:0; width:4px; transform:translateX(-50%);
+    background:repeating-linear-gradient(var(--line-yellow), var(--line-yellow) 24px, transparent 24px, transparent 40px);
     clip-path:inherit;
+    filter: drop-shadow(0 0 4px rgba(255, 204, 0, 0.6));
   }
   #shoulder{
     position:absolute; left:8%; top:20%; bottom:0; width:22%;
     clip-path:polygon(60% 0%, 100% 0%, 82% 100%, 0% 100%);
-    background:linear-gradient(rgba(255,255,255,0.03), rgba(0,0,0,0.15));
+    background:linear-gradient(rgba(255,255,255,0.02), rgba(0,0,0,0.3));
+    border-right: 1px solid rgba(255,255,255,0.1);
   }
+  
   #vlayer{position:absolute; inset:0; overflow:hidden;}
-  .vehicle{position:absolute; will-change:transform; filter:drop-shadow(0 4px 6px var(--shadow));}
+  .vehicle{position:absolute; will-change:transform; filter:drop-shadow(0 8px 12px var(--shadow));}
 
   #shelter{
     position:absolute; left:4%; bottom:15%; width:23%;
     transform-origin:bottom center;
     transition:transform .18s ease;
-  }
-  #shelter.slide-out{ transform:translateX(-140%) scale(.85); transition:transform .55s ease-in; }
-  #shelter.slide-in{ animation:shelterIn .5s cubic-bezier(.25,.7,.3,1); }
-  @keyframes shelterIn{
-    0%{ transform:translate(150%,-190%) scale(.1); opacity:0; }
-    55%{ opacity:1; }
-    100%{ transform:translate(0,0) scale(1); opacity:1; }
+    filter:drop-shadow(0 10px 10px rgba(0,0,0,0.7));
   }
 
-  /* player: exposed right at the road's edge by default, tucks left into hiding when held */
+  /* 玩家加上微光陰影 */
   #player{
     position:absolute; left:26%; bottom:12%; width:10%;
-    transition:left .2s ease, transform .2s ease;
+    transition:left .2s cubic-bezier(0.2, 0.8, 0.2, 1), transform .2s ease;
     z-index:20;
+    filter:drop-shadow(0 15px 8px rgba(0,0,0,0.5));
   }
-  #player.hiding{ left:13%; transform:scale(.93) rotate(-2deg); }
-  #player.dashing{ animation:dashBob .35s linear infinite; }
-  @keyframes dashBob{ 0%{transform:translateY(0);} 50%{transform:translateY(-4%);} 100%{transform:translateY(0);} }
-  #player.dead{ transform:rotate(94deg) translateY(8%); transition:transform .4s ease-in; }
+  #player.hiding{ left:12%; transform:scale(.9) rotate(-3deg); filter:drop-shadow(0 5px 4px rgba(0,0,0,0.8)); }
+  #player.dashing{ animation:dashBob .3s linear infinite; }
+  @keyframes dashBob{ 0%{transform:translateY(0) rotate(2deg);} 50%{transform:translateY(-6%) rotate(-2deg);} 100%{transform:translateY(0) rotate(2deg);} }
+  #player.dead{ transform:rotate(94deg) translateY(20%) scale(0.9); filter:drop-shadow(0 2px 2px rgba(0,0,0,0.8)); transition:transform .3s ease-out; }
 
   #hidezone{
     position:absolute; left:1%; bottom:10%; width:27%; height:24%;
-    border:2px dashed #ffffff30; border-radius:14px; opacity:0; pointer-events:none; z-index:5;
+    border:2px dashed rgba(0, 184, 148, 0.4); border-radius:14px; opacity:0; pointer-events:none; z-index:5;
+    background: linear-gradient(rgba(0,184,148,0.1), transparent);
     transition:opacity .2s;
   }
   #hidezone.show{opacity:1;}
 
   #speedlines{position:absolute; inset:0; opacity:0; pointer-events:none; z-index:15;
-    background:repeating-linear-gradient(100deg, rgba(255,255,255,0.0) 0 18px, rgba(255,255,255,0.10) 18px 20px);
+    background:repeating-linear-gradient(105deg, transparent 0 20px, rgba(255,255,255,0.05) 20px 24px);
   }
-  #speedlines.on{opacity:1; animation:slide .25s linear infinite;}
+  #speedlines.on{opacity:1; animation:slide .2s linear infinite;}
   @keyframes slide{ from{background-position:0 0;} to{background-position:-200px 0;} }
 
-  #flash{position:absolute; inset:0; background:var(--danger); opacity:0; pointer-events:none; z-index:40;}
-  #flash.hit{animation:flash .4s ease-out;}
-  @keyframes flash{ 0%{opacity:.85;} 100%{opacity:0;} }
+  #flash{position:absolute; inset:0; background:radial-gradient(circle, transparent 20%, var(--danger) 100%); opacity:0; pointer-events:none; z-index:40;}
+  #flash.hit{animation:flash .5s ease-out;}
+  @keyframes flash{ 0%{opacity:1; background-color:rgba(232, 65, 24, 0.8);} 100%{opacity:0;} }
 
+  /* UI 介面重製 */
   #hud{
     position:absolute; top:0; left:0; right:0; z-index:30;
     display:flex; justify-content:space-between; align-items:flex-start;
-    padding:14px 16px; color:var(--paper); text-shadow:0 2px 4px #0006;
+    padding:16px 20px; color:var(--paper); 
   }
-  #hud .label{font-size:11px; letter-spacing:2px; opacity:.75;}
-  #hud .value{font-family:"Courier New",monospace; font-size:26px; font-weight:700;}
-  #streak{position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:30;
-    color:var(--paper); font-size:12px; letter-spacing:3px; opacity:.85; text-shadow:0 2px 4px #0006;}
+  #hud .label{font-size:11px; letter-spacing:2px; color:rgba(255,255,255,0.6); text-transform:uppercase;}
+  #hud .value{font-family:"Courier New",monospace; font-size:28px; font-weight:900; text-shadow: 0 0 10px rgba(255,255,255,0.3);}
+  
+  #streak{position:absolute; top:20px; left:50%; transform:translateX(-50%); z-index:30;
+    color:var(--line-yellow); font-size:14px; font-weight:bold; letter-spacing:2px; text-shadow:0 0 8px rgba(255,204,0,0.8);}
 
   #controls{
     position:absolute; bottom:0; left:0; right:0; z-index:30;
-    display:flex; gap:12px; padding:14px; padding-bottom:calc(14px + env(safe-area-inset-bottom));
+    display:flex; gap:16px; padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, rgba(0,0,0,0.8) 80%);
   }
   .btn{
-    flex:1; border:none; border-radius:16px; padding:18px 10px; font-size:20px; font-weight:700;
+    flex:1; border:none; border-radius:18px; padding:18px 10px; font-size:22px; font-weight:900;
     letter-spacing:4px; color:var(--paper); font-family:inherit; position:relative; overflow:hidden;
-    box-shadow:0 6px 0 #00000055, 0 8px 14px #00000044;
-    transform:translateY(0); transition:transform .06s, box-shadow .06s;
+    transition:transform .1s, filter .1s;
+    backdrop-filter: blur(4px);
   }
-  .btn:active, .btn.pressed{transform:translateY(5px); box-shadow:0 1px 0 #00000055, 0 2px 6px #00000044;}
-  #btn-left{background:linear-gradient(#3f6e56,var(--safe));}
-  #btn-dash{background:linear-gradient(#a8583f,#8a3d2b);}
-  #btn-dash:disabled{opacity:.4;}
-  .btn small{display:block; font-size:10px; letter-spacing:2px; font-weight:400; opacity:.8; margin-top:4px;}
+  .btn:active, .btn.pressed{transform:scale(0.95); filter:brightness(0.8);}
+  #btn-left{
+    background:rgba(0, 184, 148, 0.2); border: 2px solid var(--safe);
+    box-shadow: 0 0 15px rgba(0, 184, 148, 0.3) inset, 0 4px 10px rgba(0,0,0,0.5);
+  }
+  #btn-left.pressed{ background:var(--safe); color:#000; box-shadow: 0 0 20px var(--safe); }
+  
+  #btn-dash{
+    background:rgba(232, 65, 24, 0.2); border: 2px solid var(--danger);
+    box-shadow: 0 0 15px rgba(232, 65, 24, 0.3) inset, 0 4px 10px rgba(0,0,0,0.5);
+  }
+  #btn-dash:disabled{opacity:.3; border-color:gray; background:rgba(100,100,100,0.2);}
+  #btn-dash:not(:disabled):active{ background:var(--danger); color:#000; box-shadow: 0 0 20px var(--danger); }
+  
+  .btn small{display:block; font-size:10px; letter-spacing:2px; font-weight:400; opacity:.8; margin-top:6px;}
 
+  /* 遊戲開始/結束選單毛玻璃重製 */
   .overlay{
     position:absolute; inset:0; z-index:50; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center; padding:30px;
-    background:radial-gradient(ellipse at center, #1a1a1acc, #000000e6);
-    color:var(--paper);
+    background:rgba(10, 10, 15, 0.75); backdrop-filter: blur(8px);
+    color:var(--paper); transition: opacity 0.3s ease;
   }
-  .overlay.hidden{display:none;}
-  .overlay h1{font-size:30px; margin:0 0 6px; letter-spacing:4px;}
+  .overlay.hidden{opacity: 0; pointer-events: none;}
+  .overlay h1{font-size:36px; margin:0 0 10px; letter-spacing:6px; text-shadow: 0 4px 10px rgba(0,0,0,0.8);}
   .overlay h1 span{color:var(--line-yellow);}
-  .overlay p{font-size:13px; line-height:1.9; opacity:.85; max-width:320px; margin:6px 0 18px;}
-  .overlay .big{font-family:"Courier New",monospace; font-size:52px; font-weight:700; color:var(--line-yellow); margin:4px 0;}
-  .overlay .small{font-size:12px; opacity:.7; margin-bottom:20px;}
+  .overlay p{font-size:14px; line-height:1.8; color:#b2bec3; max-width:320px; margin:10px 0 24px;}
+  .overlay .big{font-family:"Courier New",monospace; font-size:64px; font-weight:900; color:var(--line-yellow); margin:0; text-shadow: 0 0 20px rgba(255,204,0,0.4);}
+  .overlay .small{font-size:14px; color:#636e72; margin-bottom:30px; font-weight:bold;}
+  
   .startBtn{
-    border:none; border-radius:20px; padding:16px 42px; font-size:18px; font-weight:700; letter-spacing:6px;
-    color:var(--paper); background:linear-gradient(#a8583f,#8a3d2b); box-shadow:0 6px 0 #00000055;
-    font-family:inherit;
+    border:none; border-radius:30px; padding:18px 48px; font-size:20px; font-weight:900; letter-spacing:6px;
+    color:#fff; background: linear-gradient(135deg, #e84118, #c23616);
+    box-shadow: 0 8px 20px rgba(232, 65, 24, 0.4), inset 0 2px 0 rgba(255,255,255,0.2);
+    font-family:inherit; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
   }
-  .startBtn:active{transform:translateY(5px); box-shadow:none;}
+  .startBtn:active{transform:translateY(4px); box-shadow: 0 2px 10px rgba(232, 65, 24, 0.4);}
 </style>
 </head>
 <body>
 <div id="stage">
 
-  <svg class="defs">
-    <filter id="wobble">
-      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.04" numOctaves="2" seed="7" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="4"/>
-    </filter>
-  </svg>
-
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
-    <rect x="0" y="20" width="30" height="40" fill="#7d8a94"/>
-    <rect x="34" y="10" width="22" height="50" fill="#8994a0"/>
-    <rect x="60" y="26" width="18" height="34" fill="#7d8a94"/>
-    <rect x="82" y="4" width="26" height="56" fill="#94a0aa"/>
-    <rect x="130" y="18" width="20" height="42" fill="#7d8a94"/>
-    <rect x="160" y="0" width="30" height="60" fill="#8994a0"/>
-    <rect x="200" y="22" width="16" height="38" fill="#7d8a94"/>
-    <rect x="230" y="12" width="24" height="48" fill="#94a0aa"/>
-    <rect x="270" y="24" width="18" height="36" fill="#7d8a94"/>
-    <rect x="300" y="6" width="28" height="54" fill="#8994a0"/>
-    <rect x="340" y="20" width="20" height="40" fill="#7d8a94"/>
-    <rect x="370" y="14" width="24" height="46" fill="#94a0aa"/>
+    <rect x="0" y="20" width="30" height="40" fill="#2d3436"/>
+    <rect x="5" y="25" width="8" height="6" fill="#feca57" opacity="0.6"/>
+    <rect x="34" y="10" width="22" height="50" fill="#1e272e"/>
+    <rect x="60" y="26" width="18" height="34" fill="#2d3436"/>
+    <rect x="82" y="4" width="26" height="56" fill="#1e272e"/>
+    <rect x="88" y="12" width="6" height="12" fill="#feca57" opacity="0.8"/>
+    <rect x="130" y="18" width="20" height="42" fill="#2d3436"/>
+    <rect x="160" y="0" width="30" height="60" fill="#1e272e"/>
+    <rect x="170" y="8" width="10" height="8" fill="#feca57" opacity="0.5"/>
+    <rect x="200" y="22" width="16" height="38" fill="#2d3436"/>
+    <rect x="230" y="12" width="24" height="48" fill="#1e272e"/>
+    <rect x="236" y="20" width="6" height="15" fill="#feca57" opacity="0.7"/>
+    <rect x="270" y="24" width="18" height="36" fill="#2d3436"/>
+    <rect x="300" y="6" width="28" height="54" fill="#1e272e"/>
+    <rect x="340" y="20" width="20" height="40" fill="#2d3436"/>
+    <rect x="370" y="14" width="24" height="46" fill="#1e272e"/>
   </svg>
 
   <div class="buildings" id="buildings-left"></div>
@@ -186,34 +206,33 @@
 
   <div id="hud">
     <div>
-      <div class="label">距離</div>
-      <div class="value" id="score">0<span style="font-size:14px">m</span></div>
+      <div class="label">距離 Distance</div>
+      <div class="value" id="score">0<span style="font-size:16px; opacity:0.6;">m</span></div>
     </div>
     <div style="text-align:right">
-      <div class="label">最佳</div>
-      <div class="value" id="best">0<span style="font-size:14px">m</span></div>
+      <div class="label">最佳 Best</div>
+      <div class="value" id="best">0<span style="font-size:16px; opacity:0.6;">m</span></div>
     </div>
   </div>
   <div id="streak"></div>
 
   <div id="controls">
-    <button class="btn" id="btn-left">閃<small>按住＝躲進遮蔽物</small></button>
-    <button class="btn" id="btn-dash">衝<small>賭一把前進</small></button>
+    <button class="btn" id="btn-left">閃<small>按住躲藏</small></button>
+    <button class="btn" id="btn-dash">衝<small>抓空檔前進</small></button>
   </div>
 
   <div class="overlay" id="start-overlay">
     <h1>嘉興路<span>行人地獄</span></h1>
-    <p>竹北嘉興路沒有人行道，走在路邊本來就跟車流搶道。<br>
-       按住「閃」躲到遮蔽物後面才安全，放開就回到路邊、隨時可能被貼身而過的車撞到。<br>
-       車少的空檔按「衝」賭一把跑到下一個遮蔽物，衝刺途中沒辦法再躲。</p>
-    <button class="startBtn" id="start-btn">開始</button>
+    <p>竹北嘉興路沒有人行道，走在路邊本來就跟車流搶道。<br><br>
+       長按「閃」躲到掩體後方。<br>抓準空檔按「衝」賭一把跑到下個掩體，衝刺途中無法再躲。</p>
+    <button class="startBtn" id="start-btn">開始地獄</button>
   </div>
 
   <div class="overlay hidden" id="over-overlay">
     <h1 style="color:var(--danger)">你被撞飛了</h1>
     <div class="big" id="final-score">0m</div>
     <div class="small" id="best-note"></div>
-    <button class="startBtn" id="retry-btn">再走一次</button>
+    <button class="startBtn" id="retry-btn">再試一次</button>
   </div>
 
 </div>
@@ -237,145 +256,161 @@
 
   let bestScore = 0;
 
-  // 1. 修改 svgWrap，增加第三個參數用來自由控制是否啟用抖動濾鏡
-  function svgWrap(inner, vb, useFilter = true){
-    const filterStr = useFilter ? 'filter="url(#wobble)"' : '';
-    return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible" ${filterStr}>${inner}</svg>`;
+  // 移除了 Wobble 濾鏡，確保 SVG 在放大縮小時代碼邊緣清晰乾淨
+  function svgWrap(inner, vb){
+    return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible">${inner}</svg>`;
   }
+  
   function shade(hex, amt){
     const n = parseInt(hex.slice(1),16);
     let r=(n>>16)+amt, g=(n>>8&0xff)+amt, b=(n&0xff)+amt;
     r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
-    return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+    return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1).padStart(6, '0');
   }
 
+  // 🎨 【重製】主角：改穿顯眼的黃色螢光反光外套，頭部與肢體分離感更明確
   const PLAYER_SVG = svgWrap(`
-    <ellipse cx="30" cy="92" rx="16" ry="5" fill="#00000030"/>
-    <path d="M18 92 L20 55 Q20 40 30 40 Q40 40 40 55 L42 92 Z" fill="#3a3f47"/>
-    <path d="M20 55 Q30 62 40 55" stroke="#2a2e34" stroke-width="2" fill="none"/>
-    <circle cx="30" cy="27" r="12" fill="#caa07a"/>
-    <path d="M18 22 Q30 8 42 22 Q42 14 30 12 Q18 14 18 22Z" fill="#2a2e34"/>
-    <rect x="10" y="50" width="8" height="24" rx="4" fill="#caa07a"/>
-    <rect x="42" y="50" width="8" height="24" rx="4" fill="#caa07a"/>
-    <rect x="22" y="88" width="7" height="14" rx="2" fill="#1f2226"/>
-    <rect x="31" y="88" width="7" height="14" rx="2" fill="#1f2226"/>
+    <ellipse cx="30" cy="95" rx="18" ry="6" fill="#00000066"/>
+    <rect x="20" y="70" width="7" height="25" rx="3" fill="#2d3436"/>
+    <rect x="33" y="70" width="7" height="25" rx="3" fill="#2d3436"/>
+    <path d="M16 35 Q30 30 44 35 L48 70 Q30 75 12 70 Z" fill="#fdcb6e"/>
+    <path d="M16 35 Q30 30 44 35 L48 70 Q30 75 12 70 Z" fill="url(#vest-grad)" opacity="0.5"/>
+    <rect x="18" y="38" width="24" height="28" rx="6" fill="#e17055"/>
+    <path d="M18 45 L42 45" stroke="#2d3436" stroke-width="3"/>
+    <path d="M14 38 Q8 55 12 75" stroke="#ffeaa7" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <path d="M46 38 Q52 55 48 75" stroke="#ffeaa7" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <circle cx="30" cy="22" r="14" fill="#fab1a0"/>
+    <path d="M16 20 Q30 2 44 20 Q46 10 30 5 Q14 10 16 20 Z" fill="#2d3436"/>
+    <defs>
+      <linearGradient id="vest-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff"/>
+        <stop offset="1" stop-color="#000"/>
+      </linearGradient>
+    </defs>
   `, "0 0 60 105");
 
+  // 🎨 【重製】掩蔽物：更精緻的陰影與高光，車輛加入閃爍的警示燈感
   const SHELTER_ART = {
     car: svgWrap(`
-      <ellipse cx="60" cy="80" rx="52" ry="8" fill="#00000035"/>
-      <path d="M12 78 L16 44 Q18 30 40 28 L84 28 Q104 30 106 46 L110 78 Z" fill="#c0c4c8"/>
-      <path d="M28 44 Q34 32 50 31 L80 31 Q94 32 98 45 L96 44 L30 44Z" fill="#8fa3ad"/>
-      <circle cx="34" cy="80" r="9" fill="#26282b"/>
-      <circle cx="90" cy="80" r="9" fill="#26282b"/>
-      <rect x="10" y="55" width="8" height="10" fill="#e8c94a"/>
-    `, "0 0 120 92"),
+      <ellipse cx="60" cy="85" rx="55" ry="10" fill="#00000088"/>
+      <path d="M10 80 L14 45 Q20 30 40 28 L80 28 Q100 30 106 45 L110 80 Z" fill="#636e72"/>
+      <path d="M10 80 L14 45 Q20 30 40 28 L80 28 Q100 30 106 45 L110 80 Z" fill="linear-gradient(to bottom, #b2bec3, #2d3436)" opacity="0.5"/>
+      <path d="M26 44 Q34 32 50 31 L70 31 Q86 32 94 44 Z" fill="#2d3436"/>
+      <path d="M28 44 Q36 34 50 33 L65 33 L60 44 Z" fill="#74b9ff" opacity="0.3"/>
+      <rect x="20" y="75" width="14" height="15" rx="4" fill="#111"/>
+      <rect x="86" y="75" width="14" height="15" rx="4" fill="#111"/>
+      <rect x="12" y="55" width="14" height="10" rx="3" fill="#d63031"/>
+      <rect x="94" y="55" width="14" height="10" rx="3" fill="#d63031"/>
+      <rect x="48" y="70" width="24" height="8" fill="#dfe6e9" rx="1"/>
+    `, "0 0 120 95"),
     scooter: svgWrap(`
-      <ellipse cx="55" cy="78" rx="40" ry="7" fill="#00000035"/>
-      <path d="M20 78 Q18 55 34 50 L70 50 Q86 52 88 70 L88 78Z" fill="#41464d"/>
-      <circle cx="30" cy="78" r="10" fill="#1f2124"/>
-      <circle cx="78" cy="78" r="10" fill="#1f2124"/>
-      <rect x="58" y="30" width="6" height="22" rx="3" fill="#2a2d31"/>
-      <rect x="46" y="26" width="30" height="8" rx="4" fill="#2a2d31"/>
-    `, "0 0 100 90"),
+      <ellipse cx="55" cy="82" rx="45" ry="8" fill="#00000088"/>
+      <path d="M22 80 Q20 55 35 50 L65 50 Q80 52 82 72 L82 80Z" fill="#2d3436"/>
+      <path d="M24 78 Q22 58 35 54 L65 54 Z" fill="#636e72"/>
+      <circle cx="32" cy="76" r="12" fill="#111"/>
+      <circle cx="32" cy="76" r="5" fill="#dfe6e9"/>
+      <circle cx="78" cy="76" r="12" fill="#111"/>
+      <circle cx="78" cy="76" r="5" fill="#dfe6e9"/>
+      <rect x="42" y="24" width="34" height="10" rx="5" fill="#111"/>
+      <rect x="62" y="28" width="6" height="24" rx="3" fill="#636e72"/>
+      <rect x="54" y="20" width="22" height="6" rx="3" fill="#b2bec3"/>
+      <circle cx="50" cy="23" r="3" fill="#d63031"/>
+    `, "0 0 100 95"),
     plant: svgWrap(`
-      <ellipse cx="40" cy="86" rx="26" ry="6" fill="#00000030"/>
-      <path d="M20 60 L30 86 L58 86 L64 60Z" fill="#a3573a"/>
-      <path d="M20 60 L64 60 L60 52 L24 52Z" fill="#c46a45"/>
-      <path d="M42 55 Q20 40 24 15 Q40 30 42 55Z" fill="#4c7a4f"/>
-      <path d="M42 55 Q64 38 58 12 Q42 26 42 55Z" fill="#5d8f5c"/>
-      <path d="M42 55 Q46 26 30 8 Q50 14 46 40Q46 48 42 55Z" fill="#3f6a44"/>
-    `, "0 0 80 92"),
+      <ellipse cx="40" cy="88" rx="30" ry="8" fill="#00000088"/>
+      <path d="M20 60 L28 88 L52 88 L60 60 Z" fill="#b2bec3"/>
+      <path d="M20 60 L60 60 L56 52 L24 52 Z" fill="#636e72"/>
+      <circle cx="40" cy="40" r="22" fill="#00b894"/>
+      <circle cx="28" cy="30" r="15" fill="#55efc4"/>
+      <circle cx="52" cy="28" r="16" fill="#00cec9"/>
+      <circle cx="40" cy="18" r="14" fill="#81ecec"/>
+      <path d="M30 45 Q40 25 50 45 Z" fill="#000" opacity="0.2"/>
+    `, "0 0 80 95"),
   };
 
-  const CAR_COLORS = ["#c0392b","#e9e4d4","#37474f","#2a5c8a","#8a8f94"];
-  const JACKET_COLORS = ["#2c3e50","#1f1f1f","#4a3b2a","#5c2626","#374a3a"];
+  const CAR_COLORS = ["#d63031","#dfe6e9","#2d3436","#0984e3","#e1b12c"];
+  const JACKET_COLORS = ["#2d3436","#111","#d63031","#00b894","#0984e3"];
   let vehicleUid = 0;
 
-  // 1. 車子調用 svgWrap 時傳入 false，徹底解決越近越模糊的問題
+  // 🎨 【重製】迎面而來的車輛：加入強烈的發光頭燈(radialGradient)與玻璃反光
   function vehicleSVG(type){
     const uid = 'v'+(vehicleUid++);
     if(type==='car'){
       const c = CAR_COLORS[Math.floor(Math.random()*CAR_COLORS.length)];
-      const bodyTop = shade(c,-26), bodyBot = shade(c,14);
+      const bodyTop = shade(c,-20), bodyBot = shade(c,20);
       return svgWrap(`
         <defs>
           <linearGradient id="body${uid}" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="${bodyTop}"/>
-            <stop offset="0.55" stop-color="${c}"/>
+            <stop offset="0.5" stop-color="${c}"/>
             <stop offset="1" stop-color="${bodyBot}"/>
           </linearGradient>
-          <radialGradient id="lamp${uid}" cx="0.5" cy="0.4" r="0.7">
-            <stop offset="0" stop-color="#fff7d6"/>
-            <stop offset="1" stop-color="#e8c94a"/>
+          <radialGradient id="lamp${uid}" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="40%" stop-color="#ffeaa7"/>
+            <stop offset="100%" stop-color="rgba(255, 234, 167, 0)"/>
           </radialGradient>
         </defs>
-        <ellipse cx="80" cy="104" rx="66" ry="7" fill="#00000030"/>
-        <path d="M10 92 L14 46 Q18 14 60 10 L100 10 Q142 14 146 46 L150 92 Z" fill="url(#body${uid})" stroke="#00000030" stroke-width="2"/>
-        <path d="M34 46 Q40 22 62 20 L98 20 Q120 22 126 47 L120 46 L40 46Z" fill="#9fc3d6" opacity="0.88"/>
-        <path d="M40 24 L72 40" stroke="#ffffff" stroke-width="4" opacity="0.35" stroke-linecap="round"/>
-        <circle cx="38" cy="92" r="17" fill="#1b1d1f"/>
-        <circle cx="38" cy="92" r="7" fill="#5c6166"/>
-        <circle cx="122" cy="92" r="17" fill="#1b1d1f"/>
-        <circle cx="122" cy="92" r="7" fill="#5c6166"/>
-        <circle cx="27" cy="57" r="11" fill="url(#lamp${uid})" stroke="#00000020"/>
-        <circle cx="133" cy="57" r="11" fill="url(#lamp${uid})" stroke="#00000020"/>
-        <rect x="60" y="86" width="40" height="9" rx="2" fill="#eee7cf"/>
-        <g stroke="#00000035" stroke-width="2">
-          <line x1="66" y1="70" x2="94" y2="70"/>
-          <line x1="64" y1="76" x2="96" y2="76"/>
-        </g>
-        <circle cx="16" cy="60" r="4" fill="#cfd6da"/>
-        <circle cx="144" cy="60" r="4" fill="#cfd6da"/>
-      `, "0 0 160 110", false);
+        <ellipse cx="80" cy="108" rx="70" ry="10" fill="#000000aa"/>
+        <path d="M10 92 L14 46 Q18 14 60 10 L100 10 Q142 14 146 46 L150 92 Z" fill="url(#body${uid})"/>
+        <path d="M30 46 Q38 22 62 20 L98 20 Q122 22 130 47 L124 46 L36 46Z" fill="#1e272e"/>
+        <path d="M38 24 L78 40" stroke="#74b9ff" stroke-width="6" opacity="0.4" stroke-linecap="round"/>
+        <circle cx="36" cy="94" r="18" fill="#111"/>
+        <circle cx="36" cy="94" r="8" fill="#636e72"/>
+        <circle cx="124" cy="94" r="18" fill="#111"/>
+        <circle cx="124" cy="94" r="8" fill="#636e72"/>
+        <rect x="55" y="80" width="50" height="12" rx="3" fill="#111"/>
+        <line x1="60" y1="86" x2="100" y2="86" stroke="#2d3436" stroke-width="2"/>
+        <circle cx="25" cy="65" r="28" fill="url(#lamp${uid})"/>
+        <circle cx="135" cy="65" r="28" fill="url(#lamp${uid})"/>
+        <circle cx="25" cy="65" r="8" fill="#fff"/>
+        <circle cx="135" cy="65" r="8" fill="#fff"/>
+      `, "0 0 160 120");
     }
+    
+    // 機車騎士
     const jc = JACKET_COLORS[Math.floor(Math.random()*JACKET_COLORS.length)];
     return svgWrap(`
       <defs>
         <linearGradient id="jacket${uid}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="${shade(jc,20)}"/>
-          <stop offset="1" stop-color="${shade(jc,-14)}"/>
+          <stop offset="1" stop-color="${shade(jc,-20)}"/>
         </linearGradient>
-        <radialGradient id="headlamp${uid}" cx="0.5" cy="0.4" r="0.7">
-          <stop offset="0" stop-color="#fff7d6"/>
-          <stop offset="1" stop-color="#e8c94a"/>
+        <radialGradient id="hlamp${uid}" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="#fff"/>
+          <stop offset="50%" stop-color="#81ecec"/>
+          <stop offset="100%" stop-color="transparent"/>
         </radialGradient>
-        <linearGradient id="visor${uid}" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#7fa0b8"/>
-          <stop offset="1" stop-color="#28323c"/>
-        </linearGradient>
       </defs>
-      <ellipse cx="60" cy="120" rx="46" ry="7" fill="#00000030"/>
-      <circle cx="60" cy="112" r="21" fill="#161819"/>
-      <circle cx="60" cy="112" r="10" fill="#4a4f54"/>
-      <circle cx="60" cy="112" r="3" fill="#7a8085"/>
-      <path d="M40 108 Q42 76 60 74 Q78 76 80 108Z" fill="#2c2f33"/>
-      <rect x="18" y="68" width="84" height="10" rx="5" fill="#22252a"/>
-      <circle cx="16" cy="73" r="8" fill="#22252a"/>
-      <circle cx="104" cy="73" r="8" fill="#22252a"/>
-      <circle cx="16" cy="73" r="3.4" fill="#8fa3ad"/>
-      <circle cx="104" cy="73" r="3.4" fill="#8fa3ad"/>
-      <circle cx="60" cy="64" r="14" fill="url(#headlamp${uid})" stroke="#00000025"/>
-      <path d="M44 32 Q60 12 76 32 Q78 44 60 46 Q42 44 44 32Z" fill="url(#jacket${uid})"/>
-      <circle cx="60" cy="12" r="17" fill="#e8ba86"/>
-      <path d="M42 10 Q60 -8 78 10 Q80 0 60 -2 Q40 0 42 10Z" fill="#20252b"/>
-      <path d="M47 11 Q60 19 73 11 L71 20 Q60 26 49 20Z" fill="url(#visor${uid})"/>
-      <path d="M49 12 L58 6" stroke="#ffffff" stroke-width="2" opacity=".5" stroke-linecap="round"/>
-      <rect x="28" y="38" width="14" height="20" rx="6" fill="url(#jacket${uid})"/>
-      <rect x="78" y="38" width="14" height="20" rx="6" fill="url(#jacket${uid})"/>
-    `, "0 -10 120 130", false);
+      <ellipse cx="60" cy="120" rx="45" ry="8" fill="#000000aa"/>
+      <path d="M38 108 Q40 70 60 68 Q80 70 82 108Z" fill="#2d3436"/>
+      <circle cx="60" cy="112" r="22" fill="#111"/>
+      <circle cx="60" cy="112" r="12" fill="#636e72"/>
+      <circle cx="60" cy="70" r="30" fill="url(#hlamp${uid})"/>
+      <circle cx="60" cy="70" r="10" fill="#fff"/>
+      <rect x="20" y="60" width="80" height="8" rx="4" fill="#111"/>
+      <path d="M42 30 Q60 10 78 30 Q80 45 60 48 Q40 45 42 30Z" fill="url(#jacket${uid})"/>
+      <circle cx="60" cy="10" r="18" fill="#ffeaa7"/>
+      <path d="M44 8 Q60 -10 76 8 Q80 2 60 0 Q40 2 44 8Z" fill="#111"/>
+      <path d="M48 10 Q60 20 72 10 L68 20 Q60 26 52 20Z" fill="#0984e3" opacity="0.8"/>
+      <path d="M44 32 L30 55" stroke="url(#jacket${uid})" stroke-width="10" stroke-linecap="round"/>
+      <path d="M76 32 L90 55" stroke="url(#jacket${uid})" stroke-width="10" stroke-linecap="round"/>
+    `, "0 -10 120 135");
   }
 
+  // 背景的鐵皮屋與公寓，加入微弱的窗戶光源
   function buildingsMarkup(seedOffset){
     let s = '';
     for(let i=0;i<5;i++){
       const y = i*90;
-      const shutter = (i%2===0) ? 'var(--shutter-cream)' : '#d7cba8';
+      const shutter = (i%2===0) ? 'var(--shutter-cream)' : '#1e272e';
+      const signColor = (i+seedOffset)%2===0 ? 'var(--shutter-red)' : 'var(--sign-blue)';
       s += `
-        <g transform="translate(0 ${y})" filter="url(#wobble)">
-          <rect x="0" y="0" width="200" height="80" fill="${shutter}" stroke="#00000022" stroke-width="2"/>
-          ${Array.from({length:8}).map((_,k)=>`<line x1="${k*25}" y1="0" x2="${k*25}" y2="80" stroke="#00000018" stroke-width="3"/>`).join('')}
-          <rect x="10" y="-26" width="70" height="22" fill="${(i+seedOffset)%2===0?'var(--shutter-red)':'var(--sign-blue)'}"/>
+        <g transform="translate(0 ${y})">
+          <rect x="0" y="0" width="200" height="80" fill="${shutter}" stroke="#111" stroke-width="3"/>
+          ${Array.from({length:8}).map((_,k)=>`<line x1="${k*25}" y1="0" x2="${k*25}" y2="80" stroke="#000" stroke-width="4" opacity="0.3"/>`).join('')}
+          <rect x="15" y="-28" width="80" height="26" rx="2" fill="${signColor}" stroke="#111" stroke-width="2"/>
+          <rect x="20" y="-23" width="70" height="16" fill="rgba(255,255,255,0.2)"/>
         </g>
       `;
     }
@@ -385,6 +420,7 @@
   $('#buildings-right').innerHTML = buildingsMarkup(1);
   player.innerHTML = PLAYER_SVG;
 
+  // --- 以下為融合了「動態透視修正」的遊戲核心邏輯 ---
   const STATE = { IDLE:'idle', SHELTERED:'sheltered', DASHING:'dashing', OVER:'over' };
   let state = STATE.IDLE;
   let distance = 0;
@@ -396,22 +432,21 @@
   let dodgedCount = 0;
   let shelterTypes = ['car','scooter','plant'];
   let rafId = null;
-  let lastTime = 0;
   let dashPendingGap = 0;
 
-  // 2. 新增控制障礙物動態時間與螢幕適應所需的變數
+  // 動態透視所需變數
   let dashStartAt = 0;
   let dashDuration = 0;
-  let shelterDefaultTopPercent = 62; // 預設安全屋頂部百分比位置
+  let shelterDefaultTopPercent = 65; // 預設的 CSS Top 基準 (用測量的)
 
-  function difficultyFactor(){ return Math.min(1.4, 1 + distance/420); }
+  function difficultyFactor(){ return Math.min(1.5, 1 + distance/450); }
 
   function pickShelter(){
     const t = shelterTypes[Math.floor(Math.random()*shelterTypes.length)];
     shelter.innerHTML = SHELTER_ART[t];
   }
 
-  // 測量當前解析度下，靜止掩體的精準 Top 百分比，確保衝刺完對接不閃爍
+  // 計算響應式畫面下，掩體的正確 Top 百分比
   function measureShelterTop() {
     const stageH = $('#stage').clientHeight;
     if(stageH > 0) {
@@ -422,11 +457,10 @@
   function resetGame(){
     distance = 0; vehicles.forEach(v=>v.el.remove()); vehicles=[];
     dodgedCount = 0; spawnInterval = 1300;
-    scoreEl.textContent = '0m';
+    scoreEl.innerHTML = '0<span style="font-size:16px; opacity:0.6;">m</span>';
     streakEl.textContent = '';
     player.className = ''; isHiding = false;
     pickShelter();
-    shelter.className='';
     
     // 重置掩體原生的 CSS 定位
     shelter.style.left = '4%';
@@ -439,14 +473,13 @@
     flashEl.className='';
     speedlinesEl.className='';
     btnDash.disabled = false;
-    setTimeout(measureShelterTop, 50); // 稍作延遲確保 DOM 渲染完畢
+    setTimeout(measureShelterTop, 50); 
   }
 
   function startGame(){
     startOverlay.classList.add('hidden');
     overOverlay.classList.add('hidden');
     resetGame();
-    lastTime = performance.now();
     if(rafId) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(loop);
   }
@@ -460,31 +493,31 @@
     speedlinesEl.classList.remove('on');
     const d = Math.floor(distance);
     bestScore = Math.max(bestScore, d);
-    bestEl.textContent = bestScore+'m';
+    bestEl.innerHTML = bestScore+'<span style="font-size:16px; opacity:0.6;">m</span>';
     setTimeout(()=>{
       $('#final-score').textContent = d+'m';
-      $('#best-note').textContent = d>=bestScore ? '新紀錄！' : ('最佳 '+bestScore+'m');
+      $('#best-note').textContent = d>=bestScore ? '🎉 突破新紀錄！' : ('最佳紀錄 '+bestScore+'m');
       overOverlay.classList.remove('hidden');
       cancelAnimationFrame(rafId);
-    }, 500);
+    }, 600);
   }
 
   function trySpawn(now){
     if(now - lastSpawn < spawnInterval/difficultyFactor()) return;
     lastSpawn = now;
     const bigGap = Math.random() < 0.3;
-    spawnInterval = bigGap ? (2800 + Math.random()*2400) : (1500 + Math.random()*1100);
-    const type = Math.random()<0.62 ? 'scooter' : 'car';
-    const duration = (type==='scooter'? 2100:2500) / difficultyFactor();
+    spawnInterval = bigGap ? (2600 + Math.random()*2000) : (1400 + Math.random()*1000);
+    const type = Math.random()<0.65 ? 'scooter' : 'car';
+    const duration = (type==='scooter'? 1900:2300) / difficultyFactor();
     const el = document.createElement('div');
     el.className = 'vehicle';
     el.innerHTML = vehicleSVG(type);
-    const w = type==='scooter'? 66:104;
+    const w = type==='scooter'? 75:115;
     el.style.width = w+'px';
     el.style.left = '50%';
     el.style.top = '18%';
     vlayer.appendChild(el);
-    const laneEndX = (type==='scooter' ? 31 : 37) + (Math.random()*4-2);
+    const laneEndX = (type==='scooter' ? 30 : 36) + (Math.random()*4-2);
     vehicles.push({ el, type, spawnAt: now, duration, impactAt: now+duration, resolved:false, laneEndX });
   }
 
@@ -494,8 +527,8 @@
       let p = (now - v.spawnAt)/v.duration;
       if(p>1) p=1;
       const ease = p*p*(3-2*p);
-      const scale = 0.12 + ease*1.55;
-      const yTop = 18, yEnd = 87;
+      const scale = 0.12 + ease*1.6;
+      const yTop = 18, yEnd = 92;
       const y = yTop + (yEnd-yTop)*ease;
       const xStart = 50, xEnd = v.laneEndX;
       const x = xStart + (xEnd-xStart)*ease;
@@ -520,7 +553,7 @@
     if(state!==STATE.SHELTERED) return;
     if(isHiding){
       dodgedCount++;
-      streakEl.textContent = dodgedCount>=3 ? ('安全躲過 x'+dodgedCount) : '';
+      streakEl.textContent = dodgedCount>=3 ? ('連續安全躲過 x'+dodgedCount) : '';
     } else {
       endGame();
     }
@@ -537,13 +570,13 @@
     btnLeft.classList.toggle('pressed', v);
   }
 
-  // 2. 改造衝刺邏輯：處理舊障礙物退場，新障礙物前置
   function pressDash(){
     if(state!==STATE.SHELTERED || isHiding) return;
     state = STATE.DASHING;
     dodgedCount = 0; streakEl.textContent='';
-    const gap = 14 + Math.random()*46;
-    const dur = 550 + gap*16;
+    
+    const gap = 15 + Math.random()*45;
+    const dur = 500 + gap*15;
     
     dashDuration = dur;
     dashStartAt = performance.now();
@@ -552,9 +585,8 @@
     player.classList.add('dashing');
     speedlinesEl.classList.add('on');
 
-    // 複製當前的掩體製成一個獨立臨時工，往左下角飛走拋在腦後
+    // 複製舊掩體並往後拋
     const oldShelter = shelter.cloneNode(true);
-    oldShelter.id = 'shelter-old';
     oldShelter.style.position = 'absolute';
     oldShelter.style.left = '4%';
     oldShelter.style.bottom = '15%';
@@ -562,12 +594,11 @@
     oldShelter.style.transition = 'transform .45s ease-in, opacity .45s ease-in';
     $('#stage').appendChild(oldShelter);
     setTimeout(() => {
-      oldShelter.style.transform = 'translate(-120%, 40%) scale(0.85)';
+      oldShelter.style.transform = 'translate(-120%, 50%) scale(0.8)';
       oldShelter.style.opacity = '0';
     }, 10);
     setTimeout(() => oldShelter.remove(), 500);
 
-    // 把原本的實體換成新外觀，並立刻拉到遠方的機車起始位置（消逝點）
     pickShelter();
     updateShelterAnimation(0);
 
@@ -575,41 +606,36 @@
     btnDash.disabled = true;
   }
 
-  // 2. 動態渲染新障礙物從遠方滾動靠近的 JS 動畫
+  // 三次方曲線透視捲動
   function updateShelterAnimation(dashP) {
-    // 使用 Cubic Ease-In (三次方曲線)，在遠處移動步伐極小，營造出速度比迎面而來的車子還要慢的透視體感
     const ease = Math.pow(dashP, 3);
-    
-    const startLeft = 44; // 遠方馬路路口左側
-    const endLeft = 4;    // 最終玩家身邊位置
-    const startTop = 20;  // 機車起始的地平線高度
-    const endTop = shelterDefaultTopPercent; // 精準對齊原本靜止的高度
-    const startScale = 0.05; // 遠處看起來極小
+    const startLeft = 45;
+    const endLeft = 4;
+    const startTop = 20; 
+    const endTop = shelterDefaultTopPercent;
+    const startScale = 0.05;
     const endScale = 1;
 
     const currentLeft = startLeft + (endLeft - startLeft) * ease;
     const currentTop = startTop + (endTop - startTop) * ease;
     const currentScale = startScale + (endScale - startScale) * ease;
 
-    shelter.style.bottom = 'auto'; // 解除原生 bottom 的限制
+    shelter.style.bottom = 'auto';
     shelter.style.left = currentLeft + '%';
     shelter.style.top = currentTop + '%';
     shelter.style.transform = `scale(${currentScale})`;
   }
 
-  // 2. 衝刺結束，完美切換回原本的靜止狀態
   function finishDash(){
     distance += dashPendingGap;
-    scoreEl.textContent = Math.floor(distance)+'m';
+    scoreEl.innerHTML = Math.floor(distance)+'<span style="font-size:16px; opacity:0.6;">m</span>';
     player.classList.remove('dashing');
     speedlinesEl.classList.remove('on');
     
-    // 還原 shelter 原生的 CSS 定位屬性
     shelter.style.left = '4%';
     shelter.style.top = 'auto';
     shelter.style.bottom = '15%';
     shelter.style.transform = 'none';
-    shelter.className = '';
     
     state = STATE.SHELTERED;
     btnDash.disabled = false;
@@ -617,16 +643,12 @@
 
   function loop(now){
     if(state===STATE.OVER) return;
-    lastTime = now;
     if(state===STATE.SHELTERED){ trySpawn(now); }
     if(state===STATE.DASHING){
       trySpawn(now);
-      
-      // 2. 衝刺時持續計算進度並重新整理障礙物空間位置
       let dashP = (now - dashStartAt) / dashDuration;
       if(dashP > 1) dashP = 1;
       updateShelterAnimation(dashP);
-
       if(now >= dashEndAt){ finishDash(); }
     }
     updateVehicles(now);
