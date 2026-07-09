@@ -503,7 +503,7 @@
     if(state!==STATE.SHELTERED) return;
     if(isHiding){
       dodgedCount++;
-      streakEl.textContent = dodgedCount bronzeCount=3 ? ('連續安全閃過 x'+dodgedCount) : '';
+      streakEl.textContent = dodgedCount >=3 ? ('連續安全閃過 x'+dodgedCount) : '';
     } else {
       endGame();
     }
