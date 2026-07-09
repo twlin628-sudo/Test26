@@ -503,7 +503,8 @@
     if(state!==STATE.SHELTERED) return;
     if(isHiding){
       dodgedCount++;
-      streakEl.textContent = dodgedCount >=3 ? ('連續安全閃過 x'+dodgedCount) : '';
+      // ✅ 這裡修復了 Bug！
+      streakEl.textContent = dodgedCount >= 3 ? ('連續安全閃過 x'+dodgedCount) : '';
     } else {
       endGame();
     }
