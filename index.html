@@ -396,11 +396,11 @@
     const el = document.createElement('div');
     el.className = 'vehicle car';
     el.innerHTML = vehicleSVG('car');
-    el.style.width = '112px';
+    el.style.width = '78px';
     el.style.left = '50%'; el.style.top = '18%';
     vlayer.appendChild(el);
-    const laneEndX = 40 + (Math.random()*10-5); // cars stay more central — never actually reach the pedestrian's lane
-    vehicles.push({ el, type:'car', spawnAt: now, duration: CAR_DURATION, laneEndX, yEnd:128, scaleEnd:2.5 });
+    const laneEndX = 43 + (Math.random()*8-4); // cars stay more central, further separated from the scooter lane
+    vehicles.push({ el, type:'car', spawnAt: now, duration: CAR_DURATION, laneEndX, yEnd:120, scaleEnd:1.55 });
   }
 
   function spawnScooter(now){
@@ -410,11 +410,11 @@
     const el = document.createElement('div');
     el.className = 'vehicle scooter';
     el.innerHTML = vehicleSVG('scooter');
-    el.style.width = '70px';
+    el.style.width = '58px';
     el.style.left = '50%'; el.style.top = '18%';
     vlayer.appendChild(el);
-    const laneEndX = 28 + (Math.random()*6-3); // hugs the shoulder edge — the real threat
-    vehicles.push({ el, type:'scooter', spawnAt: now, duration, prog:0, resolved:false, laneEndX, yEnd:90, scaleEnd:1.6 });
+    const laneEndX = 27 + (Math.random()*6-3); // hugs the shoulder edge — the real threat
+    vehicles.push({ el, type:'scooter', spawnAt: now, duration, prog:0, resolved:false, laneEndX, yEnd:90, scaleEnd:1.4 });
   }
 
   function trySpawn(now){
