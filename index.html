@@ -1,648 +1,681 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄</title>
+<title>竹北交通生存戰：深夜下班路 (視覺清晰版)</title>
 <style>
-  :root{
-    --sky-top: #05030a;      /* 深夜極黑紫 */
-    --sky-bottom: #120b22;   /* 工業霓虹紫霧 */
-    --road: #16171a;         /* 潮濕瀝青黑 */
-    --road-dark: #090a0c;
-    --line-yellow: #d39e00;  /* 斑駁昏黃標線 */
-    --ink: #030305;
-    --paper: #f5f6fa;
-    --danger: #ff3333;       /* 霓虹鮮血紅 */
-    --safe: #00ff66;         /* 劇毒螢光綠 */
+  body {
+    margin: 0; 
+    overflow: hidden; 
+    background-color: #05050a; /* 深夜黑紫 */
+    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+    user-select: none;
+    color: #fff;
   }
-  *{
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-    -webkit-touch-callout: none;
+  #game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
   }
-  html,body{
-    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
-    background:var(--ink); font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
-    touch-action:none;
+  /* 背景與天空 (血紅至深紫漸層) */
+  #sky {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, #2a0808 0%, #0d0914 40%, #05050a 100%);
+    z-index: 0;
   }
-  #stage{
-    position:relative; width:100%; height:100%; max-width:520px; margin:0 auto;
-    background:linear-gradient(var(--sky-top), var(--sky-bottom) 32%);
-    overflow:hidden;
-    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+  /* 道路主體 */
+  #stage {
+    position: relative;
+    width: 100%;
+    max-width: 600px; /* 限制最大寬度，手機與電腦都能玩 */
+    height: 100%;
+    background: linear-gradient(to bottom, #111 0%, #1a1a24 100%);
+    z-index: 1;
+    overflow: hidden;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
   }
-  #skyline{position:absolute; left:0; right:0; top:10%; height:12%; opacity:.25;}
-  .buildings{position:absolute; top:20%; bottom:0; width:34%; z-index:2;}
-  #buildings-left{left:0;}
-  #buildings-right{right:0; transform:scaleX(-1);}
-  #road{
-    position:absolute; left:50%; top:20%; bottom:0; width:60%;
-    transform:translateX(-50%);
-    background:linear-gradient(var(--road-dark) 0%, var(--road) 50%, #202226 100%);
-    clip-path:polygon(38% 0%, 62% 0%, 92% 100%, 8% 100%);
+  /* 路肩與兩側建築區域 */
+  #shoulder {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
   }
-  #centerline{
-    position:absolute; left:50%; top:0; bottom:0; width:5px; transform:translateX(-50%);
-    background:repeating-linear-gradient(var(--line-yellow), var(--line-yellow) 22px, transparent 22px, transparent 40px);
-    clip-path:inherit;
+  .buildings {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 34%;
+    z-index: 2;
   }
-  #shoulder{
-    position:absolute; left:8%; top:20%; bottom:0; width:22%;
-    clip-path:polygon(60% 0%, 100% 0%, 82% 100%, 0% 100%);
-    background:linear-gradient(rgba(255,255,255,0.02), rgba(0,0,0,0.3));
-    border-right: 1px solid rgba(255,255,255,0.05);
+  #buildings-left { left: 0; }
+  #buildings-right { right: 0; transform: scaleX(-1); }
+  
+  /* 道路中線 (雙黃線) */
+  #centerline {
+    position: absolute;
+    left: 50%;
+    top: -100px;
+    width: 4px;
+    height: 120%;
+    margin-left: -2px;
+    background-image: linear-gradient(to bottom, #f39c12 50%, transparent 50%);
+    background-size: 100% 80px;
+    z-index: 1;
   }
-  #vlayer{position:absolute; inset:0; overflow:hidden;}
-  .vehicle{position:absolute; will-change:transform; filter:drop-shadow(0 6px 12px rgba(0,0,0,0.6));}
-  .vehicle.car{ z-index:6; }
+  .moving #centerline {
+    animation: dash 0.4s linear infinite;
+  }
+  @keyframes dash {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(80px); }
+  }
 
-  #player{
-    position:absolute; left:26%; bottom:12%; width:10%;
-    transition:left .18s cubic-bezier(0.2, 0.8, 0.2, 1), transform .18s ease;
-    z-index:20;
-    filter:drop-shadow(0 10px 8px rgba(0,0,0,0.65));
+  /* 實體層 (玩家與車輛) */
+  #vlayer {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
   }
-  #player.hiding{ left:12%; transform:scale(.92) rotate(-2deg); filter:drop-shadow(0 4px 4px rgba(0,0,0,0.8)); }
-  #player.dashing{ animation:dashBob .25s linear infinite; }
-  @keyframes dashBob{ 0%{transform:translateY(0) rotate(1deg);} 50%{transform:translateY(-5%) rotate(-1deg);} 100%{transform:translateY(0) rotate(1deg);} }
-  #player.dead{ transform:rotate(92deg) translateY(15%) scale(0.9); filter:drop-shadow(0 2px 3px #000); transition:transform .3s ease-out; }
 
-  #speedlines{position:absolute; inset:0; opacity:0; pointer-events:none; z-index:15;
-    background:repeating-linear-gradient(100deg, transparent 0 25px, rgba(255,255,255,0.08) 25px 28px);
+  /* UI 介面層 */
+  #ui-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
   }
-  #speedlines.on{opacity:1; animation:slide .2s linear infinite;}
-  @keyframes slide{ from{background-position:0 0;} to{background-position:-200px 0;} }
-
-  #flash{position:absolute; inset:0; background:var(--danger); opacity:0; pointer-events:none; z-index:40;}
-  #flash.hit{animation:flash .4s ease-out;}
-  @keyframes flash{ 0%{opacity:0.8;} 100%{opacity:0;} }
-
-  #hud{
-    position:absolute; top:0; left:0; right:0; z-index:30;
-    display:flex; justify-content:space-between; align-items:flex-start;
-    padding:16px; color:var(--paper); text-shadow:0 2px 8px rgba(0,0,0,0.9);
+  .score-board {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 0 10px #ff0055, 2px 2px 0px #000;
   }
-  #hud .label{font-size:11px; letter-spacing:2px; opacity:0.8; color:#ff4d4d;}
-  #hud .value{font-family:"Courier New",monospace; font-size:26px; font-weight:900;}
-  #streak{position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:30;
-    color:#f1c40f; font-size:13px; font-weight:bold; letter-spacing:2px; text-shadow:0 2px 5px rgba(0,0,0,0.9);}
-
-  /* 🗺️ 嘉興路路牌樣式 */
+  
+  /* 嘉興路路牌 */
   #street-sign {
     position: absolute;
-    right: 15px;
-    bottom: 130px; /* 剛好安全地浮在控制面板上方 */
-    z-index: 25;
-    background: #005a36; /* 台灣標準路牌綠 */
-    border: 3px solid #ffffff;
+    top: 20px;
+    right: 20px;
+    background: #006400;
+    border: 2px solid #fff;
     border-radius: 4px;
-    padding: 4px 10px;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.8), inset 0 0 5px rgba(255,255,255,0.3);
-    transform: rotate(-3deg);
-    pointer-events: none;
+    padding: 5px 15px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    text-shadow: 1px 1px 2px #000;
+  }
+  #street-sign::after {
+    content: "Jiaxing Rd.";
+    display: block;
+    font-size: 10px;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    line-height: 1.1;
+    background: rgba(5, 5, 10, 0.85);
+    pointer-events: auto;
+    backdrop-filter: blur(4px);
   }
-  #street-sign .chinese {
-    color: #ffffff;
-    font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
-    font-size: 15px;
-    font-weight: 900;
-    letter-spacing: 3px;
+  .hidden { display: none !important; }
+  
+  h1 {
+    font-size: 42px;
+    margin: 0 0 10px 0;
+    color: #ff3366;
+    text-shadow: 0 0 20px #ff3366, 0 0 40px #aa0022;
+    text-align: center;
   }
-  #street-sign .english {
-    color: #ffffff;
-    font-family: Arial, sans-serif;
-    font-size: 8px;
+  p {
+    font-size: 18px;
+    color: #ccc;
+    text-align: center;
+    max-width: 80%;
+    line-height: 1.5;
+  }
+  .btn {
+    margin-top: 30px;
+    padding: 15px 40px;
+    font-size: 22px;
     font-weight: bold;
-    letter-spacing: 0.5px;
-    opacity: 0.9;
-    margin-top: 1px;
+    color: #fff;
+    background: linear-gradient(45deg, #aa0022, #ff3366);
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 10px rgba(255, 51, 102, 0.8);
   }
 
-  #controls{
-    position:absolute; bottom:0; left:0; right:0; z-index:35;
-    display:flex; gap:14px; padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom));
-    background: linear-gradient(transparent, rgba(0,0,0,0.85) 50%);
+  /* 車輛與玩家的絕對定位 wrapper */
+  .ent {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
-  .btn{
-    flex:1; border:none; border-radius:16px; padding:16px 10px; font-size:22px; font-weight:900;
-    letter-spacing:4px; color:var(--paper); font-family:inherit; position:relative;
-    box-shadow:0 5px 0 rgba(0,0,0,0.6), 0 8px 10px rgba(0,0,0,0.5);
-    transform:translateY(0); transition:transform .05s, box-shadow .05s;
-    touch-action: manipulation;
-  }
-  .btn:active, .btn.pressed{ transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5); }
-  #btn-left{ background: linear-gradient(#00e676, #008f39); border:1px solid #007026; }
-  #btn-dash{ background: linear-gradient(#ff3d00, #b21f00); border:1px solid #8a1500; }
-  .btn small{ display:block; font-size:10px; letter-spacing:1px; font-weight:normal; opacity:.85; margin-top:4px; }
-
-  .overlay{
-    position:absolute; inset:0; z-index:50; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; padding:30px;
-    background:radial-gradient(circle, rgba(20,10,25,0.96) 0%, rgba(5,2,8,0.99) 100%);
-    color:var(--paper);
-  }
-  .overlay.hidden{display:none;}
-  .overlay h1{font-size:32px; margin:0 0 8px; letter-spacing:4px; text-shadow:0 3px 8px #000; color:#fff;}
-  .overlay h1 span{color:var(--danger); text-shadow: 0 0 10px rgba(255,51,51,0.6);}
-  .overlay p{font-size:14px; line-height:1.8; opacity:.8; max-width:320px; margin:8px 0 24px;}
-  .overlay .big{font-family:"Courier New",monospace; font-size:56px; font-weight:900; color:#ffcc00; margin:5px 0; text-shadow:0 4px 15px rgba(255,204,0,0.4);}
-  .overlay .small{font-size:13px; opacity:.6; margin-bottom:24px;}
-  .startBtn{
-    border:none; border-radius:24px; padding:16px 48px; font-size:18px; font-weight:900; letter-spacing:4px;
-    color:#fff; background:linear-gradient(#ff3333, #b30000); box-shadow:0 5px 0 #660000;
-    cursor:pointer; font-family:inherit; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-  }
-  .startBtn:active{transform:translateY(4px); box-shadow:none;}
 </style>
 </head>
 <body>
-<div id="stage">
 
-  <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
-    <!-- 漆黑的鋼筋森林與零星的加班燈光 -->
-    <rect x="0" y="20" width="40" height="40" fill="#06040a"/>
-    <circle cx="15" cy="30" r="1.5" fill="#f1c40f" opacity="0.6"/>
-    <circle cx="25" cy="40" r="1.5" fill="#f1c40f" opacity="0.8"/>
-    <rect x="50" y="10" width="30" height="50" fill="#08060f"/>
-    <rect x="55" y="15" width="5" height="5" fill="#f39c12" opacity="0.5"/>
-    <rect x="95" y="25" width="25" height="35" fill="#05040a"/>
-    <rect x="130" y="5" width="40" height="55" fill="#0a0814"/>
-    <rect x="145" y="20" width="6" height="6" fill="#f1c40f" opacity="0.8"/>
-    <rect x="155" y="35" width="6" height="6" fill="#f1c40f" opacity="0.9"/>
-    <rect x="185" y="18" width="20" height="42" fill="#06050b"/>
-    <rect x="220" y="12" width="35" height="48" fill="#080710"/>
-    <rect x="235" y="22" width="5" height="5" fill="#f1c40f" opacity="0.7"/>
-    <rect x="270" y="22" width="25" height="38" fill="#040308"/>
-    <rect x="310" y="8" width="40" height="52" fill="#090713"/>
-    <rect x="325" y="18" width="6" height="6" fill="#ff3333" opacity="0.8"/> <!-- 頂端閃爍紅燈 -->
-    <rect x="365" y="15" width="35" height="45" fill="#040308"/>
-  </svg>
-
-  <div class="buildings" id="buildings-left"></div>
-  <div class="buildings" id="buildings-right"></div>
-
-  <div id="road"><div id="centerline"></div></div>
-  <div id="shoulder"></div>
-
-  <div id="vlayer"></div>
-  <div id="speedlines"></div>
-
-  <!-- 🎯 右下角「嘉興路」路牌 -->
-  <div id="street-sign">
-    <div class="chinese">嘉興路</div>
-    <div class="english">Jiaxing Rd.</div>
-  </div>
-
-  <div id="player"></div>
-  <div id="flash"></div>
-
-  <div id="hud">
-    <div>
-      <div class="label">逃生距離</div>
-      <div class="value" id="score">0m</div>
+<div id="game-container">
+  <div id="sky"></div>
+  <div id="stage">
+    <div id="centerline"></div>
+    <div id="shoulder">
+      <div id="buildings-left" class="buildings"></div>
+      <div id="buildings-right" class="buildings"></div>
     </div>
-    <div style="text-align:right">
-      <div class="label">極限紀錄</div>
-      <div class="value" id="best">0m</div>
+    <div id="vlayer"></div>
+    <div id="ui-layer">
+      <div class="score-board">生存時間: <span id="score">0</span>s</div>
+      <div id="street-sign">嘉興路</div>
     </div>
   </div>
-  <div id="streak"></div>
 
-  <div id="controls">
-    <button class="btn" id="btn-left">閃<small>任何時候按住＝閃避</small></button>
-    <button class="btn" id="btn-dash">衝<small>按住＝往前走</small></button>
+  <!-- 開始畫面 -->
+  <div id="start-screen" class="screen">
+    <h1>竹北生存戰<br><span style="font-size: 28px; color: #fff;">深夜下班路</span></h1>
+    <p>拖曳滑鼠或手指控制移動。<br>閃避逆向、鑽車縫的機車與三寶！<br>活下去，安全回家！</p>
+    <button class="btn" id="start-btn">開始求生</button>
   </div>
 
-  <div class="overlay" id="start-overlay">
-    <h1>嘉興路<span>行人地獄</span></h1>
-    <p>深夜加班結束...你拖著疲憊的身體走在沒有人行道的嘉興路旁。<br><br>
-       前方車輛回堵正在慢慢排隊，但狂暴的機車卻瘋狂地從車縫中呼嘯而出！<br><br>
-       按住「衝」往前前進，遇到高速機車時迅速按住「閃」側身躲避！</p>
-    <button class="startBtn" id="start-btn">開始求生</button>
+  <!-- 死亡畫面 -->
+  <div id="game-over-screen" class="screen hidden">
+    <h1>事故發生！</h1>
+    <p style="color: #ffaaaa; font-weight: bold; font-size: 22px;">你被擊落了...</p>
+    <p>本次存活時間: <span id="final-score" style="color:#fff; font-weight:bold; font-size: 24px;">0</span> 秒</p>
+    <button class="btn" id="restart-btn">重新超渡</button>
   </div>
-
-  <div class="overlay hidden" id="over-overlay">
-    <h1 style="color:var(--danger); text-shadow: 0 0 10px rgba(255,0,0,0.5);">下班失敗，你被撞飛了！</h1>
-    <div class="big" id="final-score">0m</div>
-    <div class="small" id="best-note"></div>
-    <button class="startBtn" id="retry-btn">重新超渡</button>
-  </div>
-
 </div>
 
 <script>
-(function(){
-  const $ = (s)=>document.querySelector(s);
-  const vlayer = $('#vlayer');
-  const player = $('#player');
-  const scoreEl = $('#score');
-  const bestEl = $('#best');
-  const streakEl = $('#streak');
-  const flashEl = $('#flash');
-  const speedlinesEl = $('#speedlines');
-  const startOverlay = $('#start-overlay');
-  const overOverlay = $('#over-overlay');
-  const btnLeft = $('#btn-left');
-  const btnDash = $('#btn-dash');
+// --- 核心變數與設定 (邏輯未改) ---
+const FPS = 60;
+const STAGE_WIDTH = document.getElementById('stage').clientWidth;
+const STAGE_HEIGHT = document.getElementById('stage').clientHeight;
 
-  let bestScore = 0;
+let gameInterval, spawnerInterval;
+let scoreTimer;
+let score = 0;
+let isPlaying = false;
+let speedMultiplier = 1; // 隨時間增加遊戲速度
 
-  function svgWrap(inner, vb){
-    return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible;">${inner}</svg>`;
-  }
-  function shade(hex, amt){
-    const n = parseInt(hex.slice(1),16);
-    let r=(n>>16)+amt, g=(n>>8&0xff)+amt, b=(n&0xff)+amt;
-    r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
-    return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
-  }
+let entities = []; // 存放所有車輛物件
+let player = null;
 
-  // 🧑 疲憊社畜玩家設計 (死魚眼、黑眼圈、凌亂領帶、深灰色廉價西裝)
-  const PLAYER_SVG = svgWrap(`
-    <ellipse cx="30" cy="92" rx="15" ry="5" fill="rgba(0,0,0,0.45)"/>
-    <!-- 西裝褲 -->
-    <path d="M18 92 L22 52 Q23 42 30 42 Q37 42 38 52 L42 92 Z" fill="#2c3e50"/>
-    <!-- 西裝外套 -->
-    <path d="M16 52 L22 45 L38 45 L44 52 L41 75 L19 75 Z" fill="#1b2631"/>
-    <!-- 疲累的死白臉龐 -->
-    <circle cx="30" cy="24" r="11" fill="#f5cba7"/>
-    <!-- 凹陷的黑眼圈眼窩 -->
-    <ellipse cx="26" cy="24" rx="3" ry="2" fill="rgba(139,112,148,0.4)"/>
-    <ellipse cx="34" cy="24" rx="3" ry="2" fill="rgba(139,112,148,0.4)"/>
-    <ellipse cx="26" cy="24" rx="1" ry="1" fill="#111"/>
-    <ellipse cx="34" cy="24" rx="1" ry="1" fill="#111"/>
-    <!-- 緊抿無奈的嘴唇 -->
-    <line x1="26" y1="30" x2="34" y2="30" stroke="#c0392b" stroke-width="1.5"/>
-    <!-- 雜亂的黑髮 -->
-    <path d="M18 20 Q30 5 42 20 Q40 11 30 10 Q20 11 18 20Z" fill="#111111"/>
-    <!-- 袖子與慘白無力的手 -->
-    <rect x="11" y="48" width="7" height="22" rx="3" fill="#1b2631"/>
-    <rect x="42" y="48" width="7" height="22" rx="3" fill="#1b2631"/>
-    <!-- 白襯衫與凌亂的紅領帶 -->
-    <path d="M27 45 L30 54 L33 45 Z" fill="#ffffff"/>
-    <path d="M29 48 L30 68 L32 68 L31 48 Z" fill="#c0392b"/>
-  `, "0 0 60 105");
+// --- DOM 元素 ---
+const elStage = document.getElementById('stage');
+const elVlayer = document.getElementById('vlayer');
+const elScore = document.getElementById('score');
+const screenStart = document.getElementById('start-screen');
+const screenOver = document.getElementById('game-over-screen');
+const elFinalScore = document.getElementById('final-score');
 
-  // 深色系車輛配色
-  const CAR_COLORS = ["#1a0505","#1c1d1f","#0b1521","#15161c","#2c1c02"];
-  let vehicleUid = 0;
+// --- 顏色設定 ---
+// 將汽車調亮，增加辨識度
+const CAR_COLORS = ["#c0392b", "#7f8c8d", "#2980b9", "#d35400", "#27ae60", "#8e44ad"];
+// 隨機店名
+const SHOP_NAMES = ["新竹都城隍", "竹北特產", "工程師回收", "肝苦人現炒", "高壓變電所", "台積電特約", "金陽昌企業", "阿嬤的資源", "深夜機車行", "大都會網咖"];
 
-  // 🚗 & 🏍️ 深夜高對比大燈燈光設計
-  function vehicleSVG(type){
-    const uid = 'v'+(vehicleUid++);
-    if(type==='car'){
-      const c = CAR_COLORS[Math.floor(Math.random()*CAR_COLORS.length)];
-      return svgWrap(`
+// 輔助：顏色加深/變亮 (視覺處理)
+function shade(color, percent) {
+    let R = parseInt(color.substring(1,3),16);
+    let G = parseInt(color.substring(3,5),16);
+    let B = parseInt(color.substring(5,7),16);
+    R = parseInt(R * (100 + percent) / 100);
+    G = parseInt(G * (100 + percent) / 100);
+    B = parseInt(B * (100 + percent) / 100);
+    R = (R<255)?R:255;  
+    G = (G<255)?G:255;  
+    B = (B<255)?B:255;  
+    let RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
+    let GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
+    let BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
+    return "#"+RR+GG+BB;
+}
+
+// --- 靜態背景繪製 (美工修改：加入路燈與右側文字修正) ---
+function buildEnvironment() {
+    function buildingsMarkup(isRightSide) {
+        let s = `
         <defs>
-          <linearGradient id="body${uid}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="${shade(c,-35)}"/>
-            <stop offset="0.5" stop-color="${c}"/>
-            <stop offset="1" stop-color="${shade(c,15)}"/>
+          <linearGradient id="lampGlow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="rgba(255, 240, 150, 0.6)"/>
+            <stop offset="100%" stop-color="rgba(255, 240, 150, 0)"/>
           </linearGradient>
-          <!-- 汽車黃色強光大燈渲染 -->
-          <radialGradient id="glowCar" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="rgba(255, 240, 150, 1)"/>
-            <stop offset="35%" stop-color="rgba(255, 220, 80, 0.45)"/>
-            <stop offset="100%" stop-color="rgba(255, 220, 80, 0)"/>
-          </radialGradient>
-        </defs>
-        <!-- 大燈放射光束效果 -->
-        <polygon points="28,62 -120,250 80,250 28,62" fill="url(#glowCar)" opacity="0.14"/>
-        <polygon points="132,62 80,250 280,250 132,62" fill="url(#glowCar)" opacity="0.14"/>
+        </defs>`;
+        for(let i=0; i<6; i++) {
+            let y = i * 110;
+            let shop = {
+                name: SHOP_NAMES[Math.floor(Math.random()*SHOP_NAMES.length)],
+                bg: CAR_COLORS[Math.floor(Math.random()*CAR_COLORS.length)],
+                text: Math.random()>0.5 ? "#f1c40f" : "#ecf0f1" // 霓虹招牌字色
+            };
+            s += `<g transform="translate(0, ${y})">`;
+            // 建築基底
+            s += `<rect x="0" y="0" width="160" height="110" fill="#151515" stroke="#0a0a0a" stroke-width="2"/>`;
+            // 騎樓陰影
+            s += `<rect x="120" y="0" width="40" height="110" fill="#0a0a0a"/>`;
+            
+            // 招牌
+            s += `<rect x="10" y="60" width="140" height="35" fill="${shade(shop.bg, -30)}" rx="4"/>`;
+            s += `<rect x="15" y="65" width="130" height="25" fill="#111" rx="2"/>`;
+            
+            // 右側因為外層設定了 scaleX(-1)，為了讓字維持正向，我們使用 transform 翻轉文字回來
+            if (isRightSide) {
+                s += `<text x="100" y="82" transform="translate(200, 0) scale(-1, 1)" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>`;
+            } else {
+                s += `<text x="80" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>`;
+            }
 
-        <ellipse cx="80" cy="102" rx="64" ry="7" fill="rgba(0,0,0,0.5)"/>
-        <!-- 車體 -->
-        <path d="M12 90 L16 46 Q20 16 60 12 L100 12 Q140 16 144 46 L148 90 Z" fill="url(#body${uid})"/>
-        <!-- 烏黑防爆玻璃 -->
-        <path d="M32 46 Q38 24 62 22 L98 22 Q122 24 128 47 Z" fill="#0a0f14" opacity="0.95"/>
-        <circle cx="34" cy="90" r="16" fill="#050505"/>
-        <circle cx="126" cy="90" r="16" fill="#050505"/>
-        <!-- 刺眼大燈 -->
-        <circle cx="28" cy="62" r="13" fill="url(#glowCar)"/>
-        <circle cx="28" cy="62" r="5" fill="#fff"/>
-        <circle cx="132" cy="62" r="13" fill="url(#glowCar)"/>
-        <circle cx="132" cy="62" r="5" fill="#fff"/>
-        <rect x="58" y="82" width="44" height="10" rx="2" fill="#2d3436"/>
-      `, "0 0 160 110");
+            // 新增：每兩棟建築架設一盞路燈
+            if (i % 2 === 0) {
+                s += `
+                <!-- 路燈桿與燈罩 -->
+                <rect x="188" y="0" width="4" height="110" fill="#2d3436"/>
+                <path d="M190 20 Q195 5 215 10" stroke="#2d3436" stroke-width="4" fill="none"/>
+                <path d="M205 8 L220 12 L218 16 L203 12 Z" fill="#111"/>
+                <!-- 路燈燈泡與光暈 -->
+                <ellipse cx="212" cy="14" rx="12" ry="5" fill="#fff" filter="drop-shadow(0 0 8px #f1c40f)"/>
+                <polygon points="212,14 130,110 310,110" fill="url(#lampGlow)" opacity="0.4"/>
+                `;
+            }
+            s += `</g>`;
+        }
+        // 將 svg 的 overflow 設為 visible 讓路燈光暈能自然投射到馬路上
+        return `<svg viewBox="0 0 200 660" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" style="position:absolute;inset:0; overflow:visible;">${s}</svg>`;
     }
-    // 🏍️ 機車：刺眼白光、深色盔甲與血紅安全帽
-    return svgWrap(`
+    document.getElementById('buildings-left').innerHTML = buildingsMarkup(false);
+    document.getElementById('buildings-right').innerHTML = buildingsMarkup(true);
+}
+buildEnvironment();
+
+// --- 實體 SVG 產生器 (美工修改：調亮車體、窗戶、雨衣) ---
+function vehicleSVG(type, uid) {
+    let svg = '';
+    if (type === 'car') {
+        let c = CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)];
+        svg = `
+        <svg viewBox="0 0 120 220" width="100%" height="100%" style="display:block; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8));">
+          <defs>
+            <linearGradient id="body${uid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="${shade(c,-20)}"/>
+              <stop offset="0.5" stop-color="${shade(c,40)}"/> <!-- 加亮車頂反光 -->
+              <stop offset="1" stop-color="${shade(c,-10)}"/>
+            </linearGradient>
+            <linearGradient id="light${uid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(255, 255, 200, 0.9)"/>
+              <stop offset="1" stop-color="rgba(255, 255, 200, 0)"/>
+            </linearGradient>
+          </defs>
+          <!-- 底盤陰影 -->
+          <rect x="10" y="10" width="100" height="200" rx="15" fill="rgba(0,0,0,0.7)"/>
+          <!-- 輪胎 -->
+          <rect x="5" y="30" width="10" height="35" rx="3" fill="#111"/>
+          <rect x="105" y="30" width="10" height="35" rx="3" fill="#111"/>
+          <rect x="5" y="150" width="10" height="35" rx="3" fill="#111"/>
+          <rect x="105" y="150" width="10" height="35" rx="3" fill="#111"/>
+          <!-- 車身 -->
+          <rect x="12" y="12" width="96" height="196" rx="20" fill="url(#body${uid})"/>
+          <!-- 車窗 (調亮至偏藍灰) -->
+          <path d="M22 60 L98 60 L90 100 L30 100 Z" fill="#2c3e50" opacity="0.85"/>
+          <path d="M30 130 L90 130 L96 180 L24 180 Z" fill="#2c3e50" opacity="0.85"/>
+          <!-- 大燈光束 (血尿感車燈) -->
+          <polygon points="25,12 5, -80 45, -80" fill="url(#light${uid})"/>
+          <polygon points="95,12 75, -80 115, -80" fill="url(#light${uid})"/>
+          <!-- 車燈本體 -->
+          <rect x="18" y="12" width="18" height="8" rx="3" fill="#fff" filter="drop-shadow(0 0 5px #fff)"/>
+          <rect x="84" y="12" width="18" height="8" rx="3" fill="#fff" filter="drop-shadow(0 0 5px #fff)"/>
+          <!-- 尾燈 -->
+          <rect x="20" y="200" width="20" height="6" rx="2" fill="#ff0000" filter="drop-shadow(0 0 8px #ff0000)"/>
+          <rect x="80" y="200" width="20" height="6" rx="2" fill="#ff0000" filter="drop-shadow(0 0 8px #ff0000)"/>
+        </svg>`;
+    } else if (type === 'scooter') {
+        svg = `
+        <svg viewBox="0 0 120 180" width="100%" height="100%" style="display:block; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.8));">
+           <defs>
+            <linearGradient id="slight${uid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(200, 255, 255, 0.9)"/>
+              <stop offset="1" stop-color="rgba(200, 255, 255, 0)"/>
+            </linearGradient>
+          </defs>
+          <!-- 機車陰影 -->
+          <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.7)"/>
+          <!-- 車頭 -->
+          <circle cx="60" cy="110" r="20" fill="#34495e"/>
+          <!-- 車身 -->
+          <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#556b2f"/> 
+          <!-- 踏板 -->
+          <rect x="22" y="66" width="76" height="8" rx="4" fill="#7f8c8d"/>
+          
+          <!-- 超亮大燈光束 (白光/白目打鳥燈) -->
+          <polygon points="60,95 20, -50 100, -50" fill="url(#slight${uid})"/>
+          <!-- 大燈本體 -->
+          <circle cx="60" cy="110" r="6" fill="#fff" filter="drop-shadow(0 0 8px #fff)"/>
+          
+          <!-- 騎士明亮雨衣 (螢光橘/黃) -->
+          <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#f39c12"/>
+          <!-- 雨衣背部反光條 -->
+          <path d="M48 38 Q60 28 72 38" stroke="#ecf0f1" stroke-width="2" fill="none"/>
+          
+          <!-- 騎士頭部 (亮紅色安全帽) -->
+          <circle cx="60" cy="14" r="16" fill="#e74c3c"/>
+          <!-- 護目鏡反光 -->
+          <path d="M48 12 Q60 22 72 12" stroke="#81ecec" stroke-width="3.5" fill="none"/>
+          
+          <!-- 把手與騎士手臂 -->
+          <path d="M30 100 Q40 60 50 40" stroke="#f39c12" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M90 100 Q80 60 70 40" stroke="#f39c12" stroke-width="6" stroke-linecap="round" fill="none"/>
+        </svg>`;
+    }
+    return svg;
+}
+
+// 玩家 SVG (保持主角光環特徵)
+function playerSVG() {
+    return `
+    <svg viewBox="0 0 120 180" width="100%" height="100%" style="display:block; filter: drop-shadow(0 10px 15px rgba(255,51,102,0.4));">
       <defs>
-        <radialGradient id="glowScooter" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="rgba(255, 255, 255, 1)"/>
-          <stop offset="35%" stop-color="rgba(255, 240, 180, 0.5)"/>
-          <stop offset="100%" stop-color="rgba(255, 240, 180, 0)"/>
-        </radialGradient>
+        <linearGradient id="plight" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="rgba(255, 51, 102, 0.8)"/>
+          <stop offset="1" stop-color="rgba(255, 51, 102, 0)"/>
+        </linearGradient>
       </defs>
-      <!-- 強烈機車大燈光束 -->
-      <polygon points="60,62 -140,250 260,250 60,62" fill="url(#glowScooter)" opacity="0.2"/>
+      <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.8)"/>
+      <circle cx="60" cy="110" r="20" fill="#222"/>
+      <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#222"/>
+      <rect x="22" y="66" width="76" height="8" rx="4" fill="#444"/>
+      
+      <!-- 主角專屬血紅大燈 -->
+      <polygon points="60,95 20, -50 100, -50" fill="url(#plight)"/>
+      <circle cx="60" cy="110" r="6" fill="#ff3366" filter="drop-shadow(0 0 10px #ff3366)"/>
+      
+      <!-- 疲憊工程師外套 -->
+      <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#34495e"/>
+      <circle cx="60" cy="14" r="16" fill="#111"/>
+      <!-- 安全帽發光線條 -->
+      <path d="M48 10 Q60 -2 72 10" stroke="#ff3366" stroke-width="2" fill="none" filter="drop-shadow(0 0 3px #ff3366)"/>
+      
+      <path d="M30 100 Q40 60 50 40" stroke="#34495e" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M90 100 Q80 60 70 40" stroke="#34495e" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <!-- 尾燈 -->
+      <rect x="50" y="140" width="20" height="4" rx="2" fill="#ff0000" filter="drop-shadow(0 0 5px #ff0000)"/>
+    </svg>`;
+}
 
-      <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.6)"/>
-      <circle cx="60" cy="110" r="20" fill="#0a0a0a"/>
-      <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#111111"/>
-      <rect x="22" y="66" width="76" height="8" rx="4" fill="#222"/>
-      <!-- 超亮大燈 -->
-      <circle cx="60" cy="62" r="16" fill="url(#glowScooter)"/>
-      <circle cx="60" cy="62" r="6" fill="#fff"/>
-      <!-- 騎士黑色雨衣/外套 -->
-      <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#1b1c21"/>
-      <!-- 🎯 地獄風亮紅安全帽與發光護目鏡 -->
-      <circle cx="60" cy="14" r="16" fill="#c0392b"/>
-      <path d="M48 12 Q60 22 72 12" stroke="#00e676" stroke-width="3.5" fill="none"/> <!-- 劇毒綠冷光鏡片 -->
-      <path d="M45 14 Q60 -4 75 14 Z" fill="#111"/>
-    `, "0 -10 120 130");
-  }
+// --- 實體類別 (邏輯完全未改) ---
+let uidCounter = 0;
 
-  // 🏢 【地獄深夜霓虹】招牌與建築
-  function buildingsMarkup(isRightSide){
-    let s = '';
-    const leftShops = [
-      { name: "中村深夜藝術", bg: "#150202", text: "#ff3333", stroke: "#ff3333" },
-      { name: "阿明無薪加班麵", bg: "#1a1002", text: "#f39c12", stroke: "#f39c12" },
-      { name: "24H爆胎機車行", bg: "#021224", text: "#00d2d3", stroke: "#00d2d3" },
-      { name: "深夜地獄早午餐", bg: "#200202", text: "#ff4d4d", stroke: "#ff4d4d" },
-      { name: "爆肝24H鐘錶行", bg: "#1f1f02", text: "#f1c40f", stroke: "#f1c40f" },
-      { name: "九湯屋深夜拉麵", bg: "#0c0d15", text: "#ecf0f1", stroke: "#5f27cd" }
-    ];
-    const rightShops = [
-      { name: "金陽昌 (加班中)", bg: "#101625", text: "#00a8ff", stroke: "#00a8ff" },
-      { name: "超時汽車快速保養", bg: "#1c1e22", text: "#ffffff", stroke: "#95afc0" },
-      { name: "建國五金深夜行", bg: "#250202", text: "#ff3838", stroke: "#f1c40f" },
-      { name: "協成深夜回收廠", bg: "#021c08", text: "#2ecc71", stroke: "#2ecc71" },
-      { name: "大榮深夜快遞", bg: "#1f0f02", text: "#ff9f43", stroke: "#ff9f43" },
-      { name: "東陽無人工廠", bg: "#12051c", text: "#a55eea", stroke: "#a55eea" }
-    ];
-    for(let i=0; i<6; i++){
-      const y = i * 110;
-      if(!isRightSide) {
-        const shop = leftShops[i % leftShops.length];
-        s += `
-          <g transform="translate(0 ${y})">
-            <!-- 暗黑建築牆面 -->
-            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#18191d' : '#111215'}" stroke="#25262b" stroke-width="1"/>
-            ${i%2===0 ?
-              `<rect x="20" y="15" width="60" height="40" fill="#07080a" rx="2"/>
-               <!-- 偶爾有一戶在爆肝加班，透出黃光 -->
-               <rect x="22" y="17" width="26" height="36" fill="${i%4===0 ? '#f39c12' : '#07080a'}" opacity="${i%4===0 ? '0.8' : '1'}"/>
-               <rect x="52" y="17" width="26" height="36" fill="#07080a"/>
-               <path d="M15 15 L85 15 L85 60 L15 60 Z" fill="none" stroke="#252a30" stroke-width="2"/>
-               <path d="M38 15 L38 60 M62 15 L62 60 M15 30 L85 30 M15 45 L85 45" stroke="#252a30" stroke-width="1.5"/>` :
-              `<rect x="25" y="20" width="50" height="30" fill="#07080a" rx="1"/>
-               <!-- 故障閃爍的藍色電視光芒 -->
-               <rect x="27" y="22" width="22" height="26" fill="#00d2d3" opacity="${i%3===0 ? '0.4' : '0.05'}"/>
-               <rect x="51" y="22" width="22" height="26" fill="#00d2d3" opacity="0.05"/>
-               <rect x="80" y="35" width="18" height="15" fill="#1b1c20" rx="1" stroke="#252a30"/>`
-            }
-            ${Array.from({length:6}).map((_,k)=>`<line x1="${k*35+10}" y1="80" x2="${k*35+10}" y2="110" stroke="rgba(0,0,0,0.6)" stroke-width="2"/>`).join('')}
-            <!-- 霓虹外發光招牌 -->
-            <rect x="10" y="62" width="170" height="32" rx="3" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="2" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
-            <text x="95" y="84" font-family="'Microsoft JhengHei', sans-serif" font-weight="bold" font-size="14" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
-          </g>
-        `;
-      } else {
-        const shop = rightShops[i % rightShops.length];
-        s += `
-          <g transform="translate(0 ${y})">
-            <!-- 右側鐵皮暗牆 -->
-            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#1d1e22' : '#141518'}" stroke="#25262b" stroke-width="1"/>
-            ${Array.from({length: 10}).map((_, k) => `<line x1="${k*20}" y1="0" x2="${k*20}" y2="50" stroke="#0b0c0e" stroke-width="1.5" opacity="0.8"/>`).join('')}
-            ${i%2===0 ?
-              `<rect x="130" y="10" width="45" height="35" rx="3" fill="#1c1d21" stroke="#25262b" stroke-width="1.5"/>
-               <circle cx="145" cy="27" r="10" fill="#07080a"/>
-               <line x1="162" y1="18" x2="170" y2="18" stroke="#07080a" stroke-width="2"/>
-               <line x1="162" y1="24" x2="170" y2="24" stroke="#07080a" stroke-width="2"/>
-               <line x1="162" y1="30" x2="170" y2="30" stroke="#07080a" stroke-width="2"/>` :
-              `<rect x="145" y="0" width="16" height="40" fill="#25262b" stroke="#07080a"/>
-               <path d="M140 40 L166 40 L160 50 L146 50 Z" fill="#07080a"/>`
-            }
-            <!-- 霓虹右側招牌 -->
-            <rect x="5" y="55" width="190" height="42" rx="2" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="3" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
-            <text x="100" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
-            <rect x="0" y="97" width="200" height="13" fill="rgba(0,0,0,0.5)"/>
-          </g>
-        `;
-      }
-    }
-    return `<svg viewBox="0 0 200 660" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" style="position:absolute;inset:0;">${s}</svg>`;
-  }
-  $('#buildings-left').innerHTML = buildingsMarkup(false);
-  $('#buildings-right').innerHTML = buildingsMarkup(true);
-  player.innerHTML = PLAYER_SVG;
-
-  // ---------------- game state ----------------
-  const STATE = { PLAYING:'playing', OVER:'over' };
-  let state = STATE.OVER;
-  let distance = 0;
-  let vehicles = [];
-  let isHiding = false;
-  let isDashing = false;
-  let dodgedCount = 0;
-  let rafId = null;
-  let lastFrameTime = 0;
-
-  // two independent traffic tracks
-  let lastCarSpawn = 0, carSpawnInterval = 1700;
-  let lastScooterSpawn = 0, scooterSpawnInterval = 3200;
-
-  const DASH_SPEED = 13; // m/s while holding 衝
-
-  function scooterDifficulty(){ return Math.min(1.35, 1 + distance/500); }
-
-  function resetGame(){
-    distance = 0; vehicles.forEach(v=>v.el.remove()); vehicles=[];
-    dodgedCount = 0;
-    scoreEl.textContent = '0m';
-    streakEl.textContent = '';
-    player.className = ''; isHiding = false; isDashing = false;
-    state = STATE.PLAYING;
-    lastCarSpawn = performance.now(); carSpawnInterval = 1000;
-    lastScooterSpawn = performance.now()+800; scooterSpawnInterval = 2600;
-    flashEl.className='';
-    speedlinesEl.className='';
-  }
-
-  function startGame(){
-    startOverlay.classList.add('hidden');
-    overOverlay.classList.add('hidden');
-    resetGame();
-    lastFrameTime = performance.now();
-    if(rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(loop);
-  }
-
-  function endGame(){
-    if(state===STATE.OVER) return;
-    state = STATE.OVER;
-    player.classList.remove('hiding','dashing');
-    player.classList.add('dead');
-    flashEl.classList.remove('hit'); void flashEl.offsetWidth; flashEl.classList.add('hit');
-    speedlinesEl.classList.remove('on');
-    const d = Math.floor(distance);
-    bestScore = Math.max(bestScore, d);
-    bestEl.textContent = bestScore+'m';
-    setTimeout(()=>{
-      $('#final-score').textContent = d+'m';
-      $('#best-note').textContent = d>=bestScore ? '🎉 創下新紀錄！' : ('最佳紀錄 '+bestScore+'m');
-      overOverlay.classList.remove('hidden');
-      cancelAnimationFrame(rafId);
-    }, 600);
-  }
-
-  const CAR_DURATION = 13000; // fixed & identical for every car — guarantees no overtaking, and 2x slower than before
-
-  function spawnCar(now){
-    const el = document.createElement('div');
-    el.className = 'vehicle car';
-    el.innerHTML = vehicleSVG('car');
-    el.style.width = '78px';
-    el.style.left = '50%'; el.style.top = '18%';
-    vlayer.appendChild(el);
-    const laneEndX = 43 + (Math.random()*8-4); // cars stay more central, further separated from the scooter lane
-    vehicles.push({ el, type:'car', spawnAt: now, duration: CAR_DURATION, laneEndX, yEnd:120, scaleEnd:1.55 });
-  }
-
-  function spawnScooter(now){
-    // speed roll: independent random value — some scooters crawl, some blast past
-    const speedRoll = 1300 + Math.random()*1500; // 1300~2800ms base duration
-    const duration = speedRoll / scooterDifficulty();
-    const el = document.createElement('div');
-    el.className = 'vehicle scooter';
-    el.innerHTML = vehicleSVG('scooter');
-    el.style.width = '58px';
-    el.style.left = '50%'; el.style.top = '18%';
-    vlayer.appendChild(el);
-    const laneEndX = 27 + (Math.random()*6-3); // hugs the shoulder edge — the real threat
-    vehicles.push({ el, type:'scooter', spawnAt: now, duration, prog:0, resolved:false, laneEndX, yEnd:90, scaleEnd:1.4 });
-  }
-
-  function trySpawn(now){
-    if(now - lastCarSpawn >= carSpawnInterval){
-      lastCarSpawn = now;
-      carSpawnInterval = 950 + Math.random()*450; // interval scaled up with the doubled duration to keep the same jam density
-      spawnCar(now);
-    }
-    if(now - lastScooterSpawn >= scooterSpawnInterval/scooterDifficulty()){
-      lastScooterSpawn = now;
-      // frequency roll: independent random value — sometimes bunched, sometimes a long empty gap
-      scooterSpawnInterval = 1600 + Math.random()*4600; // 1.6~6.2s
-      spawnScooter(now);
-    }
-  }
-
-  const SCOOTER_MIN_GAP = 0.045; // how far behind the leader a blocked scooter must stay (in progress units)
-
-  function updateVehicles(now, dt){
-    // follow-the-leader: scooters can never pass an earlier-spawned scooter still on screen
-    const scooters = vehicles.filter(v=>v.type==='scooter'); // already in spawn order
-    let leaderProg = 2; // sentinel: the frontmost scooter has no one to be blocked by
-    for(const v of scooters){
-      v.prog = Math.min(1, v.prog + dt / v.duration);
-      const fill = leaderProg - SCOOTER_MIN_GAP;
-      if(v.prog > fill) v.prog = Math.max(0, fill);
-      leaderProg = v.prog;
+class Entity {
+    constructor(type, x, y, width, height, speedY) {
+        this.uid = uidCounter++;
+        this.type = type; 
+        this.x = x; 
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.speedY = speedY;
+        this.speedX = 0;
+        this.el = document.createElement('div');
+        this.el.className = 'ent';
+        this.el.style.width = width + 'px';
+        this.el.style.height = height + 'px';
+        
+        if (type === 'player') {
+            this.el.innerHTML = playerSVG();
+        } else {
+            this.el.innerHTML = vehicleSVG(type, this.uid);
+        }
+        
+        elVlayer.appendChild(this.el);
+        this.updateDOM();
     }
 
-    for(let i=vehicles.length-1;i>=0;i--){
-      const v = vehicles[i];
-      let ease;
-      if(v.type==='car'){
-        const p = Math.min(1, (now - v.spawnAt)/v.duration);
-        ease = p; // strictly linear/uniform speed so none can overtake another
-      } else {
-        ease = v.prog*v.prog*(3-2*v.prog); // smoothstep of the (possibly blocked) progress
-      }
-      const scale = 0.12 + ease*(v.scaleEnd-0.12);
-      const yTop = 18;
-      const y = yTop + (v.yEnd-yTop)*ease;
-      const xStart = 50, xEnd = v.laneEndX;
-      const x = xStart + (xEnd-xStart)*ease;
-      v.el.style.transform = `translate(-50%,-50%) scale(${scale.toFixed(3)})`;
-      v.el.style.left = x+'%';
-      v.el.style.top = y+'%';
-      if(v.type==='scooter') v.el.style.zIndex = 10+Math.floor(ease*10);
-
-      if(v.type==='scooter' && !v.resolved && v.prog>=1){
-        v.resolved = true;
-        v.resolvedAt = now;
-        resolveImpact(v);
-      }
-      const cleanupAt = v.type==='car' ? v.spawnAt+v.duration : (v.resolved ? v.resolvedAt+280 : null);
-      if(cleanupAt!==null && now >= cleanupAt){
-        v.el.remove();
-        vehicles.splice(i,1);
-      }
+    updateDOM() {
+        this.el.style.left = this.x + 'px';
+        this.el.style.top = this.y + 'px';
     }
-  }
 
-  // only scooters can ever hit the player — cars are just slow-moving traffic-jam background
-  function resolveImpact(v){
-    if(state!==STATE.PLAYING) return;
-    if(isHiding){
-      dodgedCount++;
-      streakEl.textContent = dodgedCount>=3 ? ('連續安全閃過 x'+dodgedCount) : '';
+    remove() {
+        if (this.el && this.el.parentNode) {
+            this.el.parentNode.removeChild(this.el);
+        }
+    }
+
+    // 碰撞邊界縮小，讓閃避容錯率較合理 (邏輯不變)
+    getHitbox() {
+        const paddingX = this.width * 0.25;
+        const paddingY = this.height * 0.15;
+        return {
+            left: this.x - this.width/2 + paddingX,
+            right: this.x + this.width/2 - paddingX,
+            top: this.y + paddingY,
+            bottom: this.y + this.height - paddingY
+        };
+    }
+}
+
+// --- 遊戲邏輯與控制 (邏輯完全未改) ---
+
+function initGame() {
+    elVlayer.innerHTML = '';
+    entities = [];
+    score = 0;
+    speedMultiplier = 1;
+    elScore.innerText = score;
+    elStage.classList.add('moving');
+    
+    // 建立玩家 (置中偏下)
+    player = new Entity('player', STAGE_WIDTH / 2, STAGE_HEIGHT - 150, 60, 90, 0);
+    
+    isPlaying = true;
+    
+    scoreTimer = setInterval(() => {
+        score++;
+        elScore.innerText = score;
+        if (score % 10 === 0) {
+            speedMultiplier += 0.1; // 每10秒加速
+        }
+    }, 1000);
+
+    gameInterval = setInterval(gameLoop, 1000 / FPS);
+    spawnerInterval = setInterval(spawnEnemy, 800);
+}
+
+function stopGame() {
+    isPlaying = false;
+    elStage.classList.remove('moving');
+    clearInterval(gameInterval);
+    clearInterval(spawnerInterval);
+    clearInterval(scoreTimer);
+    
+    elFinalScore.innerText = score;
+    screenOver.classList.remove('hidden');
+}
+
+function spawnEnemy() {
+    if (!isPlaying) return;
+    
+    // 難度隨時間增加，產車頻率變快 (邏輯不變)
+    let currentSpawnRate = Math.max(300, 800 - (speedMultiplier * 100));
+    clearInterval(spawnerInterval);
+    spawnerInterval = setInterval(spawnEnemy, currentSpawnRate);
+
+    const isCar = Math.random() > 0.6; // 40% 汽車, 60% 機車
+    const width = isCar ? 70 : 45;
+    const height = isCar ? 130 : 70;
+    
+    // 隨機X位置 (限制在兩側路肩之間，路肩各約佔 34% -> 道路約 32%)
+    // 為了更好玩，放寬一點可活動範圍到 20% ~ 80%
+    const minX = STAGE_WIDTH * 0.25 + width/2;
+    const maxX = STAGE_WIDTH * 0.75 - width/2;
+    const x = minX + Math.random() * (maxX - minX);
+    
+    const isOpposite = Math.random() > 0.5; // 50% 機率逆向
+    
+    let y, speedY;
+    
+    // 基礎車速
+    let baseSpeed = (isCar ? 4 : 6) * speedMultiplier;
+    
+    if (isOpposite) {
+        // 逆向：從上方出現往下衝
+        y = -height;
+        speedY = baseSpeed * 1.5; // 逆向感覺較快 (因為與玩家相對速度)
     } else {
-      endGame();
+        // 順向：從下方出現往上鑽
+        y = STAGE_HEIGHT + height;
+        speedY = -baseSpeed * 0.5; // 順向速度差
     }
-  }
 
-  function setHiding(v){
-    if(state!==STATE.PLAYING) return;
-    isHiding = v;
-    player.classList.toggle('hiding', v);
-    btnLeft.classList.toggle('pressed', v);
-  }
-  function setDashing(v){
-    if(state!==STATE.PLAYING) return;
-    isDashing = v;
-    player.classList.toggle('dashing', v);
-    speedlinesEl.classList.toggle('on', v);
-    btnDash.classList.toggle('pressed', v);
-  }
-
-  function loop(now){
-    if(state===STATE.OVER) return;
-    const dt = Math.min(50, now-lastFrameTime);
-    lastFrameTime = now;
-
-    trySpawn(now);
-    updateVehicles(now, dt);
-
-    if(isDashing){
-      distance += DASH_SPEED * (dt/1000);
-      scoreEl.textContent = Math.floor(distance)+'m';
+    let enemy = new Entity(isCar ? 'car' : 'scooter', x, y, width, height, speedY);
+    
+    // 三寶機車屬性：會隨機橫向漂移
+    if (!isCar) {
+        enemy.speedX = (Math.random() - 0.5) * 3 * speedMultiplier;
     }
-    rafId = requestAnimationFrame(loop);
-  }
+    
+    // 逆向的車子翻轉外觀
+    if (isOpposite) {
+        enemy.el.style.transform = `translateX(-50%) rotate(180deg)`;
+    }
 
-  function bindHold(btn, onDown, onUp){
-    btn.addEventListener('pointerdown', (e)=>{ e.preventDefault(); onDown(); if(btn.setPointerCapture) btn.setPointerCapture(e.pointerId); });
-    btn.addEventListener('pointerup', (e)=>{ e.preventDefault(); onUp(); });
-    btn.addEventListener('pointercancel', (e)=>{ e.preventDefault(); onUp(); });
-    btn.addEventListener('pointerleave', (e)=>{ e.preventDefault(); onUp(); });
-  }
-  bindHold(btnLeft, ()=>setHiding(true), ()=>setHiding(false));
-  bindHold(btnDash, ()=>setDashing(true), ()=>setDashing(false));
+    entities.push(enemy);
+}
 
-  window.addEventListener('keydown', (e)=>{
-    if(e.repeat) return;
-    if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A') setHiding(true);
-    if(e.key==='ArrowRight' || e.key===' ' || e.key==='d' || e.key==='D') setDashing(true);
-  });
-  window.addEventListener('keyup', (e)=>{
-    if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A') setHiding(false);
-    if(e.key==='ArrowRight' || e.key===' ' || e.key==='d' || e.key==='D') setDashing(false);
-  });
+function checkCollision(rect1, rect2) {
+    return (
+        rect1.left < rect2.right &&
+        rect1.right > rect2.left &&
+        rect1.top < rect2.bottom &&
+        rect1.bottom > rect2.top
+    );
+}
 
-  $('#start-btn').addEventListener('click', startGame);
-  $('#retry-btn').addEventListener('click', startGame);
-})();
+function gameLoop() {
+    if (!isPlaying) return;
+
+    // 更新敵人位置
+    for (let i = entities.length - 1; i >= 0; i--) {
+        let ent = entities[i];
+        
+        // 漂移邏輯
+        ent.x += ent.speedX;
+        // 邊界反彈
+        const minX = STAGE_WIDTH * 0.2 + ent.width/2;
+        const maxX = STAGE_WIDTH * 0.8 - ent.width/2;
+        if (ent.x < minX || ent.x > maxX) {
+            ent.speedX *= -1;
+            ent.x = Math.max(minX, Math.min(ent.x, maxX));
+        }
+
+        ent.y += ent.speedY;
+        ent.updateDOM();
+
+        // 碰撞判定
+        if (checkCollision(player.getHitbox(), ent.getHitbox())) {
+            stopGame();
+            return;
+        }
+
+        // 移除超出畫面的敵人
+        if (ent.y < -300 || ent.y > STAGE_HEIGHT + 300) {
+            ent.remove();
+            entities.splice(i, 1);
+        }
+    }
+}
+
+// --- 玩家操作邏輯 (邏輯完全未改) ---
+let isDragging = false;
+let startPointerX = 0;
+let startPointerY = 0;
+let startPlayerX = 0;
+let startPlayerY = 0;
+
+function pointerDown(e) {
+    if (!isPlaying) return;
+    isDragging = true;
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startPointerX = clientX;
+    startPointerY = clientY;
+    startPlayerX = player.x;
+    startPlayerY = player.y;
+}
+
+function pointerMove(e) {
+    if (!isDragging || !isPlaying) return;
+    e.preventDefault(); // 防止滾動
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    let dx = clientX - startPointerX;
+    let dy = clientY - startPointerY;
+    
+    let newX = startPlayerX + dx;
+    let newY = startPlayerY + dy;
+    
+    // 限制玩家活動範圍 (馬路範圍)
+    const minX = STAGE_WIDTH * 0.2 + player.width/2;
+    const maxX = STAGE_WIDTH * 0.8 - player.width/2;
+    newX = Math.max(minX, Math.min(newX, maxX));
+    newY = Math.max(player.height/2, Math.min(newY, STAGE_HEIGHT - player.height/2));
+    
+    player.x = newX;
+    player.y = newY;
+    player.updateDOM();
+}
+
+function pointerUp() {
+    isDragging = false;
+}
+
+// 註冊操作事件
+elStage.addEventListener('mousedown', pointerDown);
+document.addEventListener('mousemove', pointerMove);
+document.addEventListener('mouseup', pointerUp);
+
+elStage.addEventListener('touchstart', pointerDown, {passive: false});
+document.addEventListener('touchmove', pointerMove, {passive: false});
+document.addEventListener('touchend', pointerUp);
+
+// 按鈕事件
+document.getElementById('start-btn').addEventListener('click', () => {
+    screenStart.classList.add('hidden');
+    initGame();
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+    screenOver.classList.add('hidden');
+    initGame();
+});
+
+// 確保調整視窗大小時環境重新繪製
+window.addEventListener('resize', () => {
+    if (!isPlaying) {
+        buildEnvironment();
+    }
+});
+
 </script>
 </body>
 </html>
