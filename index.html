@@ -6,15 +6,15 @@
 <title>嘉興路行人地獄</title>
 <style>
   :root{
-    --sky-top: #b0bfc9;
-    --sky-bottom: #dfe4e7;
-    --road: #46484a;
-    --road-dark: #353738;
-    --line-yellow: #f1c40f;
-    --ink: #1e2522;
+    --sky-top: #05030a;      /* 深夜極黑紫 */
+    --sky-bottom: #120b22;   /* 工業霓虹紫霧 */
+    --road: #16171a;         /* 潮濕瀝青黑 */
+    --road-dark: #090a0c;
+    --line-yellow: #d39e00;  /* 斑駁昏黃標線 */
+    --ink: #030305;
     --paper: #f5f6fa;
-    --danger: #c0392b;
-    --safe: #27ae60;
+    --danger: #ff3333;       /* 霓虹鮮血紅 */
+    --safe: #00ff66;         /* 劇毒螢光綠 */
   }
   *{
     box-sizing: border-box;
@@ -31,16 +31,16 @@
     position:relative; width:100%; height:100%; max-width:520px; margin:0 auto;
     background:linear-gradient(var(--sky-top), var(--sky-bottom) 32%);
     overflow:hidden;
-    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
   }
-  #skyline{position:absolute; left:0; right:0; top:10%; height:12%; opacity:.4;}
+  #skyline{position:absolute; left:0; right:0; top:10%; height:12%; opacity:.25;}
   .buildings{position:absolute; top:20%; bottom:0; width:34%; z-index:2;}
   #buildings-left{left:0;}
   #buildings-right{right:0; transform:scaleX(-1);}
   #road{
     position:absolute; left:50%; top:20%; bottom:0; width:60%;
     transform:translateX(-50%);
-    background:linear-gradient(var(--road-dark) 0%, var(--road) 50%, #555759 100%);
+    background:linear-gradient(var(--road-dark) 0%, var(--road) 50%, #202226 100%);
     clip-path:polygon(38% 0%, 62% 0%, 92% 100%, 8% 100%);
   }
   #centerline{
@@ -51,26 +51,26 @@
   #shoulder{
     position:absolute; left:8%; top:20%; bottom:0; width:22%;
     clip-path:polygon(60% 0%, 100% 0%, 82% 100%, 0% 100%);
-    background:linear-gradient(rgba(255,255,255,0.05), rgba(0,0,0,0.15));
-    border-right: 1px solid rgba(255,255,255,0.1);
+    background:linear-gradient(rgba(255,255,255,0.02), rgba(0,0,0,0.3));
+    border-right: 1px solid rgba(255,255,255,0.05);
   }
   #vlayer{position:absolute; inset:0; overflow:hidden;}
-  .vehicle{position:absolute; will-change:transform; filter:drop-shadow(0 6px 8px rgba(0,0,0,0.35));}
-  .vehicle.car{ z-index:6; } /* cars are background traffic, always behind the danger layer */
+  .vehicle{position:absolute; will-change:transform; filter:drop-shadow(0 6px 12px rgba(0,0,0,0.6));}
+  .vehicle.car{ z-index:6; }
 
   #player{
     position:absolute; left:26%; bottom:12%; width:10%;
     transition:left .18s cubic-bezier(0.2, 0.8, 0.2, 1), transform .18s ease;
     z-index:20;
-    filter:drop-shadow(0 10px 6px rgba(0,0,0,0.35));
+    filter:drop-shadow(0 10px 8px rgba(0,0,0,0.65));
   }
-  #player.hiding{ left:12%; transform:scale(.92) rotate(-2deg); filter:drop-shadow(0 4px 4px rgba(0,0,0,0.5)); }
+  #player.hiding{ left:12%; transform:scale(.92) rotate(-2deg); filter:drop-shadow(0 4px 4px rgba(0,0,0,0.8)); }
   #player.dashing{ animation:dashBob .25s linear infinite; }
   @keyframes dashBob{ 0%{transform:translateY(0) rotate(1deg);} 50%{transform:translateY(-5%) rotate(-1deg);} 100%{transform:translateY(0) rotate(1deg);} }
   #player.dead{ transform:rotate(92deg) translateY(15%) scale(0.9); filter:drop-shadow(0 2px 3px #000); transition:transform .3s ease-out; }
 
   #speedlines{position:absolute; inset:0; opacity:0; pointer-events:none; z-index:15;
-    background:repeating-linear-gradient(100deg, transparent 0 25px, rgba(255,255,255,0.12) 25px 28px);
+    background:repeating-linear-gradient(100deg, transparent 0 25px, rgba(255,255,255,0.08) 25px 28px);
   }
   #speedlines.on{opacity:1; animation:slide .2s linear infinite;}
   @keyframes slide{ from{background-position:0 0;} to{background-position:-200px 0;} }
@@ -82,46 +82,82 @@
   #hud{
     position:absolute; top:0; left:0; right:0; z-index:30;
     display:flex; justify-content:space-between; align-items:flex-start;
-    padding:16px; color:var(--paper); text-shadow:0 2px 6px rgba(0,0,0,0.7);
+    padding:16px; color:var(--paper); text-shadow:0 2px 8px rgba(0,0,0,0.9);
   }
-  #hud .label{font-size:11px; letter-spacing:2px; opacity:0.8;}
+  #hud .label{font-size:11px; letter-spacing:2px; opacity:0.8; color:#ff4d4d;}
   #hud .value{font-family:"Courier New",monospace; font-size:26px; font-weight:900;}
   #streak{position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:30;
-    color:#f1c40f; font-size:13px; font-weight:bold; letter-spacing:2px; text-shadow:0 2px 5px rgba(0,0,0,0.8);}
+    color:#f1c40f; font-size:13px; font-weight:bold; letter-spacing:2px; text-shadow:0 2px 5px rgba(0,0,0,0.9);}
+
+  /* 🗺️ 嘉興路路牌樣式 */
+  #street-sign {
+    position: absolute;
+    right: 15px;
+    bottom: 130px; /* 剛好安全地浮在控制面板上方 */
+    z-index: 25;
+    background: #005a36; /* 台灣標準路牌綠 */
+    border: 3px solid #ffffff;
+    border-radius: 4px;
+    padding: 4px 10px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.8), inset 0 0 5px rgba(255,255,255,0.3);
+    transform: rotate(-3deg);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+  }
+  #street-sign .chinese {
+    color: #ffffff;
+    font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 3px;
+  }
+  #street-sign .english {
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+    margin-top: 1px;
+  }
 
   #controls{
     position:absolute; bottom:0; left:0; right:0; z-index:35;
     display:flex; gap:14px; padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom));
-    background: linear-gradient(transparent, rgba(0,0,0,0.65) 70%);
+    background: linear-gradient(transparent, rgba(0,0,0,0.85) 50%);
   }
   .btn{
     flex:1; border:none; border-radius:16px; padding:16px 10px; font-size:22px; font-weight:900;
     letter-spacing:4px; color:var(--paper); font-family:inherit; position:relative;
-    box-shadow:0 5px 0 rgba(0,0,0,0.4), 0 8px 10px rgba(0,0,0,0.3);
+    box-shadow:0 5px 0 rgba(0,0,0,0.6), 0 8px 10px rgba(0,0,0,0.5);
     transform:translateY(0); transition:transform .05s, box-shadow .05s;
     touch-action: manipulation;
   }
-  .btn:active, .btn.pressed{ transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3); }
-  #btn-left{ background: linear-gradient(#2ecc71, var(--safe)); border:1px solid #27ae60; }
-  #btn-dash{ background: linear-gradient(#e74c3c, var(--danger)); border:1px solid #c0392b; }
+  .btn:active, .btn.pressed{ transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5); }
+  #btn-left{ background: linear-gradient(#00e676, #008f39); border:1px solid #007026; }
+  #btn-dash{ background: linear-gradient(#ff3d00, #b21f00); border:1px solid #8a1500; }
   .btn small{ display:block; font-size:10px; letter-spacing:1px; font-weight:normal; opacity:.85; margin-top:4px; }
 
   .overlay{
     position:absolute; inset:0; z-index:50; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center; padding:30px;
-    background:radial-gradient(circle, rgba(30,30,35,0.85) 0%, rgba(10,10,12,0.95) 100%);
+    background:radial-gradient(circle, rgba(20,10,25,0.96) 0%, rgba(5,2,8,0.99) 100%);
     color:var(--paper);
   }
   .overlay.hidden{display:none;}
-  .overlay h1{font-size:32px; margin:0 0 8px; letter-spacing:4px; text-shadow:0 3px 6px #000;}
-  .overlay h1 span{color:var(--line-yellow);}
-  .overlay p{font-size:14px; line-height:1.8; opacity:.85; max-width:320px; margin:8px 0 24px;}
-  .overlay .big{font-family:"Courier New",monospace; font-size:56px; font-weight:900; color:var(--line-yellow); margin:5px 0; text-shadow:0 4px 10px rgba(0,0,0,0.5);}
+  .overlay h1{font-size:32px; margin:0 0 8px; letter-spacing:4px; text-shadow:0 3px 8px #000; color:#fff;}
+  .overlay h1 span{color:var(--danger); text-shadow: 0 0 10px rgba(255,51,51,0.6);}
+  .overlay p{font-size:14px; line-height:1.8; opacity:.8; max-width:320px; margin:8px 0 24px;}
+  .overlay .big{font-family:"Courier New",monospace; font-size:56px; font-weight:900; color:#ffcc00; margin:5px 0; text-shadow:0 4px 15px rgba(255,204,0,0.4);}
   .overlay .small{font-size:13px; opacity:.6; margin-bottom:24px;}
   .startBtn{
     border:none; border-radius:24px; padding:16px 48px; font-size:18px; font-weight:900; letter-spacing:4px;
-    color:#fff; background:linear-gradient(#e74c3c, #c0392b); box-shadow:0 5px 0 #7f2d21;
-    cursor:pointer; font-family:inherit;
+    color:#fff; background:linear-gradient(#ff3333, #b30000); box-shadow:0 5px 0 #660000;
+    cursor:pointer; font-family:inherit; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   }
   .startBtn:active{transform:translateY(4px); box-shadow:none;}
 </style>
@@ -130,15 +166,23 @@
 <div id="stage">
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
-    <rect x="0" y="20" width="40" height="40" fill="#7f8c8d"/>
-    <rect x="50" y="10" width="30" height="50" fill="#95a5a6"/>
-    <rect x="95" y="25" width="25" height="35" fill="#7f8c8d"/>
-    <rect x="130" y="5" width="40" height="55" fill="#bdc3c7"/>
-    <rect x="185" y="18" width="20" height="42" fill="#7f8c8d"/>
-    <rect x="220" y="12" width="35" height="48" fill="#95a5a6"/>
-    <rect x="270" y="22" width="25" height="38" fill="#7f8c8d"/>
-    <rect x="310" y="8" width="40" height="52" fill="#bdc3c7"/>
-    <rect x="365" y="15" width="35" height="45" fill="#7f8c8d"/>
+    <!-- 漆黑的鋼筋森林與零星的加班燈光 -->
+    <rect x="0" y="20" width="40" height="40" fill="#06040a"/>
+    <circle cx="15" cy="30" r="1.5" fill="#f1c40f" opacity="0.6"/>
+    <circle cx="25" cy="40" r="1.5" fill="#f1c40f" opacity="0.8"/>
+    <rect x="50" y="10" width="30" height="50" fill="#08060f"/>
+    <rect x="55" y="15" width="5" height="5" fill="#f39c12" opacity="0.5"/>
+    <rect x="95" y="25" width="25" height="35" fill="#05040a"/>
+    <rect x="130" y="5" width="40" height="55" fill="#0a0814"/>
+    <rect x="145" y="20" width="6" height="6" fill="#f1c40f" opacity="0.8"/>
+    <rect x="155" y="35" width="6" height="6" fill="#f1c40f" opacity="0.9"/>
+    <rect x="185" y="18" width="20" height="42" fill="#06050b"/>
+    <rect x="220" y="12" width="35" height="48" fill="#080710"/>
+    <rect x="235" y="22" width="5" height="5" fill="#f1c40f" opacity="0.7"/>
+    <rect x="270" y="22" width="25" height="38" fill="#040308"/>
+    <rect x="310" y="8" width="40" height="52" fill="#090713"/>
+    <rect x="325" y="18" width="6" height="6" fill="#ff3333" opacity="0.8"/> <!-- 頂端閃爍紅燈 -->
+    <rect x="365" y="15" width="35" height="45" fill="#040308"/>
   </svg>
 
   <div class="buildings" id="buildings-left"></div>
@@ -150,16 +194,22 @@
   <div id="vlayer"></div>
   <div id="speedlines"></div>
 
+  <!-- 🎯 右下角「嘉興路」路牌 -->
+  <div id="street-sign">
+    <div class="chinese">嘉興路</div>
+    <div class="english">Jiaxing Rd.</div>
+  </div>
+
   <div id="player"></div>
   <div id="flash"></div>
 
   <div id="hud">
     <div>
-      <div class="label">距離</div>
+      <div class="label">逃生距離</div>
       <div class="value" id="score">0m</div>
     </div>
     <div style="text-align:right">
-      <div class="label">最佳紀錄</div>
+      <div class="label">極限紀錄</div>
       <div class="value" id="best">0m</div>
     </div>
   </div>
@@ -172,17 +222,17 @@
 
   <div class="overlay" id="start-overlay">
     <h1>嘉興路<span>行人地獄</span></h1>
-    <p>汽車在塞車，慢慢排隊經過，不會撞到你，純粹擋視線。<br><br>
-       真正的威脅是機車——速度快、頻率較低但說來就來。<br>
-       按住「衝」往前走，放開就停下；「閃」隨時都能按，按住＝側身躲開迎面而來的機車。</p>
-    <button class="startBtn" id="start-btn">開始體驗</button>
+    <p>深夜加班結束...你拖著疲憊的身體走在沒有人行道的嘉興路旁。<br><br>
+       前方車輛回堵正在慢慢排隊，但狂暴的機車卻瘋狂地從車縫中呼嘯而出！<br><br>
+       按住「衝」往前前進，遇到高速機車時迅速按住「閃」側身躲避！</p>
+    <button class="startBtn" id="start-btn">開始求生</button>
   </div>
 
   <div class="overlay hidden" id="over-overlay">
-    <h1 style="color:var(--danger)">你被撞飛了！</h1>
+    <h1 style="color:var(--danger); text-shadow: 0 0 10px rgba(255,0,0,0.5);">下班失敗，你被撞飛了！</h1>
     <div class="big" id="final-score">0m</div>
     <div class="small" id="best-note"></div>
-    <button class="startBtn" id="retry-btn">再試一次</button>
+    <button class="startBtn" id="retry-btn">重新超渡</button>
   </div>
 
 </div>
@@ -214,18 +264,37 @@
     return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
   }
 
+  // 🧑 疲憊社畜玩家設計 (死魚眼、黑眼圈、凌亂領帶、深灰色廉價西裝)
   const PLAYER_SVG = svgWrap(`
-    <ellipse cx="30" cy="92" rx="15" ry="5" fill="rgba(0,0,0,0.25)"/>
-    <path d="M18 92 L21 52 Q22 38 30 38 Q38 38 39 52 L42 92 Z" fill="#2c3e50"/>
-    <circle cx="30" cy="24" r="11" fill="#f3a683"/>
-    <path d="M18 20 Q30 5 42 20 Q40 11 30 10 Q20 11 18 20Z" fill="#1e272e"/>
-    <rect x="11" y="48" width="7" height="22" rx="3" fill="#f3a683"/>
-    <rect x="42" y="48" width="7" height="22" rx="3" fill="#f3a683"/>
+    <ellipse cx="30" cy="92" rx="15" ry="5" fill="rgba(0,0,0,0.45)"/>
+    <!-- 西裝褲 -->
+    <path d="M18 92 L22 52 Q23 42 30 42 Q37 42 38 52 L42 92 Z" fill="#2c3e50"/>
+    <!-- 西裝外套 -->
+    <path d="M16 52 L22 45 L38 45 L44 52 L41 75 L19 75 Z" fill="#1b2631"/>
+    <!-- 疲累的死白臉龐 -->
+    <circle cx="30" cy="24" r="11" fill="#f5cba7"/>
+    <!-- 凹陷的黑眼圈眼窩 -->
+    <ellipse cx="26" cy="24" rx="3" ry="2" fill="rgba(139,112,148,0.4)"/>
+    <ellipse cx="34" cy="24" rx="3" ry="2" fill="rgba(139,112,148,0.4)"/>
+    <ellipse cx="26" cy="24" rx="1" ry="1" fill="#111"/>
+    <ellipse cx="34" cy="24" rx="1" ry="1" fill="#111"/>
+    <!-- 緊抿無奈的嘴唇 -->
+    <line x1="26" y1="30" x2="34" y2="30" stroke="#c0392b" stroke-width="1.5"/>
+    <!-- 雜亂的黑髮 -->
+    <path d="M18 20 Q30 5 42 20 Q40 11 30 10 Q20 11 18 20Z" fill="#111111"/>
+    <!-- 袖子與慘白無力的手 -->
+    <rect x="11" y="48" width="7" height="22" rx="3" fill="#1b2631"/>
+    <rect x="42" y="48" width="7" height="22" rx="3" fill="#1b2631"/>
+    <!-- 白襯衫與凌亂的紅領帶 -->
+    <path d="M27 45 L30 54 L33 45 Z" fill="#ffffff"/>
+    <path d="M29 48 L30 68 L32 68 L31 48 Z" fill="#c0392b"/>
   `, "0 0 60 105");
 
-  const CAR_COLORS = ["#c0392b","#ffffff","#2c3e50","#2980b9","#7f8c8d"];
+  // 深色系車輛配色
+  const CAR_COLORS = ["#1a0505","#1c1d1f","#0b1521","#15161c","#2c1c02"];
   let vehicleUid = 0;
 
+  // 🚗 & 🏍️ 深夜高對比大燈燈光設計
   function vehicleSVG(type){
     const uid = 'v'+(vehicleUid++);
     if(type==='car'){
@@ -233,52 +302,82 @@
       return svgWrap(`
         <defs>
           <linearGradient id="body${uid}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="${shade(c,-20)}"/>
+            <stop offset="0" stop-color="${shade(c,-35)}"/>
             <stop offset="0.5" stop-color="${c}"/>
-            <stop offset="1" stop-color="${shade(c,20)}"/>
+            <stop offset="1" stop-color="${shade(c,15)}"/>
           </linearGradient>
+          <!-- 汽車黃色強光大燈渲染 -->
+          <radialGradient id="glowCar" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="rgba(255, 240, 150, 1)"/>
+            <stop offset="35%" stop-color="rgba(255, 220, 80, 0.45)"/>
+            <stop offset="100%" stop-color="rgba(255, 220, 80, 0)"/>
+          </radialGradient>
         </defs>
-        <ellipse cx="80" cy="102" rx="64" ry="7" fill="rgba(0,0,0,0.3)"/>
+        <!-- 大燈放射光束效果 -->
+        <polygon points="28,62 -120,250 80,250 28,62" fill="url(#glowCar)" opacity="0.14"/>
+        <polygon points="132,62 80,250 280,250 132,62" fill="url(#glowCar)" opacity="0.14"/>
+
+        <ellipse cx="80" cy="102" rx="64" ry="7" fill="rgba(0,0,0,0.5)"/>
+        <!-- 車體 -->
         <path d="M12 90 L16 46 Q20 16 60 12 L100 12 Q140 16 144 46 L148 90 Z" fill="url(#body${uid})"/>
-        <path d="M32 46 Q38 24 62 22 L98 22 Q122 24 128 47 Z" fill="#2c3e50" opacity="0.85"/>
-        <circle cx="34" cy="90" r="16" fill="#111"/>
-        <circle cx="126" cy="90" r="16" fill="#111"/>
-        <circle cx="28" cy="62" r="9" fill="#f1c40f"/>
-        <circle cx="132" cy="62" r="9" fill="#f1c40f"/>
-        <rect x="58" y="82" width="44" height="10" rx="2" fill="#ecf0f1"/>
+        <!-- 烏黑防爆玻璃 -->
+        <path d="M32 46 Q38 24 62 22 L98 22 Q122 24 128 47 Z" fill="#0a0f14" opacity="0.95"/>
+        <circle cx="34" cy="90" r="16" fill="#050505"/>
+        <circle cx="126" cy="90" r="16" fill="#050505"/>
+        <!-- 刺眼大燈 -->
+        <circle cx="28" cy="62" r="13" fill="url(#glowCar)"/>
+        <circle cx="28" cy="62" r="5" fill="#fff"/>
+        <circle cx="132" cy="62" r="13" fill="url(#glowCar)"/>
+        <circle cx="132" cy="62" r="5" fill="#fff"/>
+        <rect x="58" y="82" width="44" height="10" rx="2" fill="#2d3436"/>
       `, "0 0 160 110");
     }
+    // 🏍️ 機車：刺眼白光、深色盔甲與血紅安全帽
     return svgWrap(`
-      <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.3)"/>
-      <circle cx="60" cy="110" r="20" fill="#111"/>
-      <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#222"/>
-      <rect x="22" y="66" width="76" height="8" rx="4" fill="#333"/>
-      <circle cx="60" cy="62" r="12" fill="#f1c40f"/>
-      <circle cx="60" cy="62" r="5" fill="#fff"/>
-      <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#2c3e50"/>
-      <circle cx="60" cy="14" r="16" fill="#f1c40f"/>
+      <defs>
+        <radialGradient id="glowScooter" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="rgba(255, 255, 255, 1)"/>
+          <stop offset="35%" stop-color="rgba(255, 240, 180, 0.5)"/>
+          <stop offset="100%" stop-color="rgba(255, 240, 180, 0)"/>
+        </radialGradient>
+      </defs>
+      <!-- 強烈機車大燈光束 -->
+      <polygon points="60,62 -140,250 260,250 60,62" fill="url(#glowScooter)" opacity="0.2"/>
+
+      <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.6)"/>
+      <circle cx="60" cy="110" r="20" fill="#0a0a0a"/>
+      <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#111111"/>
+      <rect x="22" y="66" width="76" height="8" rx="4" fill="#222"/>
+      <!-- 超亮大燈 -->
+      <circle cx="60" cy="62" r="16" fill="url(#glowScooter)"/>
+      <circle cx="60" cy="62" r="6" fill="#fff"/>
+      <!-- 騎士黑色雨衣/外套 -->
+      <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#1b1c21"/>
+      <!-- 🎯 地獄風亮紅安全帽與發光護目鏡 -->
+      <circle cx="60" cy="14" r="16" fill="#c0392b"/>
+      <path d="M48 12 Q60 22 72 12" stroke="#00e676" stroke-width="3.5" fill="none"/> <!-- 劇毒綠冷光鏡片 -->
       <path d="M45 14 Q60 -4 75 14 Z" fill="#111"/>
-      <path d="M48 15 Q60 24 72 15 L70 22 Q60 27 50 22Z" fill="#34495e"/>
     `, "0 -10 120 130");
   }
 
+  // 🏢 【地獄深夜霓虹】招牌與建築
   function buildingsMarkup(isRightSide){
     let s = '';
     const leftShops = [
-      { name: "中村藝術中心", bg: "#8b0000", text: "#ffffff", stroke: "#5e0000" },
-      { name: "阿明傳統滷肉飯", bg: "#f39c12", text: "#000000", stroke: "#e67e22" },
-      { name: "正港機車行", bg: "#2980b9", text: "#ffffff", stroke: "#2574a9" },
-      { name: "美而美早午餐", bg: "#e74c3c", text: "#f1c40f", stroke: "#c0392b" },
-      { name: "寶島鐘錶眼鏡", bg: "#f1c40f", text: "#c0392b", stroke: "#e67e22" },
-      { name: "九湯屋拉麵", bg: "#2c3e50", text: "#ecf0f1", stroke: "#1a252f" }
+      { name: "中村深夜藝術", bg: "#150202", text: "#ff3333", stroke: "#ff3333" },
+      { name: "阿明無薪加班麵", bg: "#1a1002", text: "#f39c12", stroke: "#f39c12" },
+      { name: "24H爆胎機車行", bg: "#021224", text: "#00d2d3", stroke: "#00d2d3" },
+      { name: "深夜地獄早午餐", bg: "#200202", text: "#ff4d4d", stroke: "#ff4d4d" },
+      { name: "爆肝24H鐘錶行", bg: "#1f1f02", text: "#f1c40f", stroke: "#f1c40f" },
+      { name: "九湯屋深夜拉麵", bg: "#0c0d15", text: "#ecf0f1", stroke: "#5f27cd" }
     ];
     const rightShops = [
-      { name: "金陽昌企業", bg: "#ffffff", text: "#2980b9", stroke: "#f1c40f" },
-      { name: "宏達汽車保養", bg: "#34495e", text: "#ffffff", stroke: "#bdc3c7" },
-      { name: "建國五金行", bg: "#c0392b", text: "#ffffff", stroke: "#f1c40f" },
-      { name: "協成資源回收", bg: "#27ae60", text: "#ffffff", stroke: "#2ecc71" },
-      { name: "大榮貨運倉儲", bg: "#f39c12", text: "#ffffff", stroke: "#d35400" },
-      { name: "東陽精密機械", bg: "#8e44ad", text: "#ffffff", stroke: "#9b59b6" }
+      { name: "金陽昌 (加班中)", bg: "#101625", text: "#00a8ff", stroke: "#00a8ff" },
+      { name: "超時汽車快速保養", bg: "#1c1e22", text: "#ffffff", stroke: "#95afc0" },
+      { name: "建國五金深夜行", bg: "#250202", text: "#ff3838", stroke: "#f1c40f" },
+      { name: "協成深夜回收廠", bg: "#021c08", text: "#2ecc71", stroke: "#2ecc71" },
+      { name: "大榮深夜快遞", bg: "#1f0f02", text: "#ff9f43", stroke: "#ff9f43" },
+      { name: "東陽無人工廠", bg: "#12051c", text: "#a55eea", stroke: "#a55eea" }
     ];
     for(let i=0; i<6; i++){
       const y = i * 110;
@@ -286,41 +385,47 @@
         const shop = leftShops[i % leftShops.length];
         s += `
           <g transform="translate(0 ${y})">
-            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#a6b0b3' : '#bdc3c7'}" stroke="#7f8c8d" stroke-width="1"/>
+            <!-- 暗黑建築牆面 -->
+            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#18191d' : '#111215'}" stroke="#25262b" stroke-width="1"/>
             ${i%2===0 ?
-              `<rect x="20" y="15" width="60" height="40" fill="#2c3e50" rx="2"/>
-               <rect x="22" y="17" width="26" height="36" fill="#34495e"/>
-               <rect x="52" y="17" width="26" height="36" fill="#34495e"/>
-               <path d="M15 15 L85 15 L85 60 L15 60 Z" fill="none" stroke="#bdc3c7" stroke-width="2"/>
-               <path d="M38 15 L38 60 M62 15 L62 60 M15 30 L85 30 M15 45 L85 45" stroke="#bdc3c7" stroke-width="1.5"/>` :
-              `<rect x="25" y="20" width="50" height="30" fill="#34495e" rx="1"/>
-               <rect x="27" y="22" width="22" height="26" fill="#81ecec" opacity="0.4"/>
-               <rect x="51" y="22" width="22" height="26" fill="#81ecec" opacity="0.4"/>
-               <rect x="80" y="35" width="18" height="15" fill="#ecf0f1" rx="1" stroke="#95a5a6"/>`
+              `<rect x="20" y="15" width="60" height="40" fill="#07080a" rx="2"/>
+               <!-- 偶爾有一戶在爆肝加班，透出黃光 -->
+               <rect x="22" y="17" width="26" height="36" fill="${i%4===0 ? '#f39c12' : '#07080a'}" opacity="${i%4===0 ? '0.8' : '1'}"/>
+               <rect x="52" y="17" width="26" height="36" fill="#07080a"/>
+               <path d="M15 15 L85 15 L85 60 L15 60 Z" fill="none" stroke="#252a30" stroke-width="2"/>
+               <path d="M38 15 L38 60 M62 15 L62 60 M15 30 L85 30 M15 45 L85 45" stroke="#252a30" stroke-width="1.5"/>` :
+              `<rect x="25" y="20" width="50" height="30" fill="#07080a" rx="1"/>
+               <!-- 故障閃爍的藍色電視光芒 -->
+               <rect x="27" y="22" width="22" height="26" fill="#00d2d3" opacity="${i%3===0 ? '0.4' : '0.05'}"/>
+               <rect x="51" y="22" width="22" height="26" fill="#00d2d3" opacity="0.05"/>
+               <rect x="80" y="35" width="18" height="15" fill="#1b1c20" rx="1" stroke="#252a30"/>`
             }
-            ${Array.from({length:6}).map((_,k)=>`<line x1="${k*35+10}" y1="80" x2="${k*35+10}" y2="110" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>`).join('')}
-            <rect x="10" y="62" width="170" height="32" rx="3" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="2"/>
-            <text x="95" y="84" font-family="'Microsoft JhengHei', sans-serif" font-weight="bold" font-size="16" fill="${shop.text}" text-anchor="middle" letter-spacing="1">${shop.name}</text>
+            ${Array.from({length:6}).map((_,k)=>`<line x1="${k*35+10}" y1="80" x2="${k*35+10}" y2="110" stroke="rgba(0,0,0,0.6)" stroke-width="2"/>`).join('')}
+            <!-- 霓虹外發光招牌 -->
+            <rect x="10" y="62" width="170" height="32" rx="3" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="2" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
+            <text x="95" y="84" font-family="'Microsoft JhengHei', sans-serif" font-weight="bold" font-size="14" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
           </g>
         `;
       } else {
         const shop = rightShops[i % rightShops.length];
         s += `
           <g transform="translate(0 ${y})">
-            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#dcdde1' : '#ced6e0'}" stroke="#bdc3c7" stroke-width="1"/>
-            ${Array.from({length: 10}).map((_, k) => `<line x1="${k*20}" y1="0" x2="${k*20}" y2="50" stroke="#718093" stroke-width="1" opacity="0.3"/>`).join('')}
+            <!-- 右側鐵皮暗牆 -->
+            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#1d1e22' : '#141518'}" stroke="#25262b" stroke-width="1"/>
+            ${Array.from({length: 10}).map((_, k) => `<line x1="${k*20}" y1="0" x2="${k*20}" y2="50" stroke="#0b0c0e" stroke-width="1.5" opacity="0.8"/>`).join('')}
             ${i%2===0 ?
-              `<rect x="130" y="10" width="45" height="35" rx="3" fill="#ecf0f1" stroke="#95a5a6" stroke-width="1.5"/>
-               <circle cx="145" cy="27" r="10" fill="#2c3e50"/>
-               <line x1="162" y1="18" x2="170" y2="18" stroke="#7f8c8d" stroke-width="2"/>
-               <line x1="162" y1="24" x2="170" y2="24" stroke="#7f8c8d" stroke-width="2"/>
-               <line x1="162" y1="30" x2="170" y2="30" stroke="#7f8c8d" stroke-width="2"/>` :
-              `<rect x="145" y="0" width="16" height="40" fill="#95a5a6" stroke="#7f8c8d"/>
-               <path d="M140 40 L166 40 L160 50 L146 50 Z" fill="#7f8c8d"/>`
+              `<rect x="130" y="10" width="45" height="35" rx="3" fill="#1c1d21" stroke="#25262b" stroke-width="1.5"/>
+               <circle cx="145" cy="27" r="10" fill="#07080a"/>
+               <line x1="162" y1="18" x2="170" y2="18" stroke="#07080a" stroke-width="2"/>
+               <line x1="162" y1="24" x2="170" y2="24" stroke="#07080a" stroke-width="2"/>
+               <line x1="162" y1="30" x2="170" y2="30" stroke="#07080a" stroke-width="2"/>` :
+              `<rect x="145" y="0" width="16" height="40" fill="#25262b" stroke="#07080a"/>
+               <path d="M140 40 L166 40 L160 50 L146 50 Z" fill="#07080a"/>`
             }
-            <rect x="5" y="55" width="190" height="42" rx="2" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="4"/>
-            <text x="100" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="18" fill="${shop.text}" text-anchor="middle" letter-spacing="1">${shop.name}</text>
-            <rect x="0" y="97" width="200" height="13" fill="rgba(0,0,0,0.15)"/>
+            <!-- 霓虹右側招牌 -->
+            <rect x="5" y="55" width="190" height="42" rx="2" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="3" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
+            <text x="100" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
+            <rect x="0" y="97" width="200" height="13" fill="rgba(0,0,0,0.5)"/>
           </g>
         `;
       }
@@ -439,8 +544,8 @@
     let leaderProg = 2; // sentinel: the frontmost scooter has no one to be blocked by
     for(const v of scooters){
       v.prog = Math.min(1, v.prog + dt / v.duration);
-      const cap = leaderProg - SCOOTER_MIN_GAP;
-      if(v.prog > cap) v.prog = Math.max(0, cap);
+      const fill = leaderProg - SCOOTER_MIN_GAP;
+      if(v.prog > fill) v.prog = Math.max(0, fill);
       leaderProg = v.prog;
     }
 
