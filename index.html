@@ -342,55 +342,91 @@
     `, "0 -10 120 130");
   }
 
-// 🏢 【超精細化】對照街景的兩側店家與建築
+// 🏢 【超精細化】充滿多樣性的台式街景建築與招牌
   function buildingsMarkup(isRightSide){
     let s = '';
+    
+    // 📝 左側店面清單：民生商舖系列
+    const leftShops = [
+      { name: "中村藝術中心", bg: "#8b0000", text: "#ffffff", stroke: "#5e0000" },
+      { name: "阿明傳統滷肉飯", bg: "#f39c12", text: "#000000", stroke: "#e67e22" },
+      { name: "正港機車行", bg: "#2980b9", text: "#ffffff", stroke: "#2574a9" },
+      { name: "美而美早午餐", bg: "#e74c3c", text: "#f1c40f", stroke: "#c0392b" },
+      { name: "寶島鐘錶眼鏡", bg: "#f1c40f", text: "#c0392b", stroke: "#e67e22" },
+      { name: "九湯屋拉麵", bg: "#2c3e50", text: "#ecf0f1", stroke: "#1a252f" }
+    ];
+
+    // 📝 右側廠房清單：工業與企業系列
+    const rightShops = [
+      { name: "金陽昌企業", bg: "#ffffff", text: "#2980b9", stroke: "#f1c40f" },
+      { name: "宏達汽車保養", bg: "#34495e", text: "#ffffff", stroke: "#bdc3c7" },
+      { name: "建國五金行", bg: "#c0392b", text: "#ffffff", stroke: "#f1c40f" },
+      { name: "協成資源回收", bg: "#27ae60", text: "#ffffff", stroke: "#2ecc71" },
+      { name: "大榮貨運倉儲", bg: "#f39c12", text: "#ffffff", stroke: "#d35400" },
+      { name: "東陽精密機械", bg: "#8e44ad", text: "#ffffff", stroke: "#9b59b6" }
+    ];
+
     for(let i=0; i<6; i++){
       const y = i * 110; 
+      
       if(!isRightSide) {
-        // 🏡 左側：透天厝、台式鐵窗與「中村」深紅招牌
+        const shop = leftShops[i % leftShops.length];
+        // 🏡 左側：透天厝、台式鐵窗與多變招牌
         s += `
           <g transform="translate(0 ${y})">
-            <!-- 建築灰牆 -->
-            <rect x="0" y="0" width="200" height="110" fill="#a6b0b3" stroke="#7f8c8d" stroke-width="1"/>
+            <!-- 交替深淺的建築灰牆 -->
+            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#a6b0b3' : '#bdc3c7'}" stroke="#7f8c8d" stroke-width="1"/>
             
-            <!-- 二樓窗戶 -->
-            <rect x="20" y="15" width="60" height="40" fill="#2c3e50" rx="2"/>
-            <rect x="22" y="17" width="26" height="36" fill="#34495e"/>
-            <rect x="52" y="17" width="26" height="36" fill="#34495e"/>
-            
-            <!-- 經典台式鐵窗 (防盜窗) -->
-            <path d="M15 15 L85 15 L85 60 L15 60 Z" fill="none" stroke="#bdc3c7" stroke-width="2"/>
-            <path d="M38 15 L38 60 M62 15 L62 60 M15 30 L85 30 M15 45 L85 45" stroke="#bdc3c7" stroke-width="1.5"/>
+            <!-- 交替變化的二樓設計 (鐵窗 vs 現代玻璃窗+小冷氣) -->
+            ${i%2===0 ? 
+              `<!-- 經典台式鐵窗 -->
+               <rect x="20" y="15" width="60" height="40" fill="#2c3e50" rx="2"/>
+               <rect x="22" y="17" width="26" height="36" fill="#34495e"/>
+               <rect x="52" y="17" width="26" height="36" fill="#34495e"/>
+               <path d="M15 15 L85 15 L85 60 L15 60 Z" fill="none" stroke="#bdc3c7" stroke-width="2"/>
+               <path d="M38 15 L38 60 M62 15 L62 60 M15 30 L85 30 M15 45 L85 45" stroke="#bdc3c7" stroke-width="1.5"/>` : 
+              `<!-- 現代感窗戶與窗型冷氣 -->
+               <rect x="25" y="20" width="50" height="30" fill="#34495e" rx="1"/>
+               <rect x="27" y="22" width="22" height="26" fill="#81ecec" opacity="0.4"/>
+               <rect x="51" y="22" width="22" height="26" fill="#81ecec" opacity="0.4"/>
+               <rect x="80" y="35" width="18" height="15" fill="#ecf0f1" rx="1" stroke="#95a5a6"/>` 
+            }
             
             <!-- 一樓鐵捲門線條 -->
             ${Array.from({length:6}).map((_,k)=>`<line x1="${k*35+10}" y1="80" x2="${k*35+10}" y2="110" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>`).join('')}
             
-            <!-- 招牌：深紅底白字 -->
-            <rect x="10" y="62" width="170" height="32" rx="3" fill="#8b0000" stroke="#5e0000" stroke-width="2"/>
-            <text x="95" y="85" font-family="'Microsoft JhengHei', sans-serif" font-weight="bold" font-size="18" fill="#ffffff" text-anchor="middle" letter-spacing="2">中村藝術中心</text>
+            <!-- 獨立招牌設計 -->
+            <rect x="10" y="62" width="170" height="32" rx="3" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="2"/>
+            <text x="95" y="84" font-family="'Microsoft JhengHei', sans-serif" font-weight="bold" font-size="16" fill="${shop.text}" text-anchor="middle" letter-spacing="1">${shop.name}</text>
           </g>
         `;
       } else {
-        // 🏭 右側：鐵皮工廠、冷氣室外機與「金陽昌」巨大招牌
+        const shop = rightShops[i % rightShops.length];
+        // 🏭 右側：鐵皮工廠、冷氣室外機與多變招牌
         s += `
           <g transform="translate(0 ${y})">
-            <!-- 建築主體 -->
-            <rect x="0" y="0" width="200" height="110" fill="#dcdde1" stroke="#bdc3c7" stroke-width="1"/>
+            <!-- 建築主體交替深淺 -->
+            <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#dcdde1' : '#ced6e0'}" stroke="#bdc3c7" stroke-width="1"/>
             
             <!-- 鐵皮屋紋理 -->
             ${Array.from({length: 10}).map((_, k) => `<line x1="${k*20}" y1="0" x2="${k*20}" y2="50" stroke="#718093" stroke-width="1" opacity="0.3"/>`).join('')}
             
-            <!-- 冷氣室外機 -->
-            <rect x="130" y="10" width="45" height="35" rx="3" fill="#ecf0f1" stroke="#95a5a6" stroke-width="1.5"/>
-            <circle cx="145" cy="27" r="10" fill="#2c3e50"/> <!-- 風扇 -->
-            <line x1="162" y1="18" x2="170" y2="18" stroke="#7f8c8d" stroke-width="2"/>
-            <line x1="162" y1="24" x2="170" y2="24" stroke="#7f8c8d" stroke-width="2"/>
-            <line x1="162" y1="30" x2="170" y2="30" stroke="#7f8c8d" stroke-width="2"/>
+            <!-- 交替顯示：大型冷氣室外機 vs 工業排風管 -->
+            ${i%2===0 ? 
+              `<!-- 附帶風扇的冷氣機 -->
+               <rect x="130" y="10" width="45" height="35" rx="3" fill="#ecf0f1" stroke="#95a5a6" stroke-width="1.5"/>
+               <circle cx="145" cy="27" r="10" fill="#2c3e50"/> 
+               <line x1="162" y1="18" x2="170" y2="18" stroke="#7f8c8d" stroke-width="2"/>
+               <line x1="162" y1="24" x2="170" y2="24" stroke="#7f8c8d" stroke-width="2"/>
+               <line x1="162" y1="30" x2="170" y2="30" stroke="#7f8c8d" stroke-width="2"/>` :
+              `<!-- 工業排風管道 -->
+               <rect x="145" y="0" width="16" height="40" fill="#95a5a6" stroke="#7f8c8d"/>
+               <path d="M140 40 L166 40 L160 50 L146 50 Z" fill="#7f8c8d"/>`
+            }
             
-            <!-- 巨大招牌：白底藍字黃邊 -->
-            <rect x="5" y="55" width="190" height="42" rx="2" fill="#ffffff" stroke="#f1c40f" stroke-width="4"/>
-            <text x="100" y="83" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="22" fill="#2980b9" text-anchor="middle" letter-spacing="1">金陽昌企業</text>
+            <!-- 巨大招牌設計 -->
+            <rect x="5" y="55" width="190" height="42" rx="2" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="4"/>
+            <text x="100" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="18" fill="${shop.text}" text-anchor="middle" letter-spacing="1">${shop.name}</text>
             
             <!-- 騎樓陰影 -->
             <rect x="0" y="97" width="200" height="13" fill="rgba(0,0,0,0.15)"/>
@@ -399,7 +435,6 @@
       }
     }
     
-    // 使用 xMidYMid slice 確保文字與建築比例不會因為視窗拉伸而變形
     return `<svg viewBox="0 0 200 660" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" style="position:absolute;inset:0;">${s}</svg>`;
   }
   
