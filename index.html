@@ -1,15 +1,16 @@
 <!--
   嘉興路行人地獄
-  版本：v1.0.1
+  版本：v1.1.0
   更新：2026-07-16 — 加入 Firebase 排行榜（前三名紀錄、擠進榜單輸入名稱）
   v1.0.1：排行榜讀取/上傳失敗時顯示 Firebase 實際錯誤原因，方便排查是 Rules 權限問題還是真的斷網
+  v1.1.0：開始畫面新增排行榜前三名顯示；拿掉遊戲中右上角「極限紀錄」與本地 bestScore 記憶邏輯（改以 Firebase 排行榜為唯一資料來源）；結束畫面輸入名稱區塊維持僅在擠進前三名時顯示
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.0.1</title>
+<title>嘉興路行人地獄 v1.1.0</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -191,7 +192,7 @@
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.0.1</div>
+<div id="version-tag">v1.1.0</div>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
     <!-- 漆黑的鋼筋森林與零星的加班燈光 -->
@@ -236,10 +237,6 @@
       <div class="label">逃生距離</div>
       <div class="value" id="score">0m</div>
     </div>
-    <div style="text-align:right">
-      <div class="label">極限紀錄</div>
-      <div class="value" id="best">0m</div>
-    </div>
   </div>
   <div id="streak"></div>
 
@@ -253,13 +250,13 @@
     <p>深夜加班結束...你拖著疲憊的身體走在沒有人行道的嘉興路旁。<br><br>
        前方車輛回堵正在慢慢排隊，但狂暴的機車卻瘋狂地從車縫中呼嘯而出！<br><br>
        按住「衝」往前前進，遇到高速機車時迅速按住「閃」側身躲避！</p>
+    <div id="start-leaderboard-list" class="lb-list"><div class="lb-empty">讀取排行榜中…</div></div>
     <button class="startBtn" id="start-btn">開始求生</button>
   </div>
 
   <div class="overlay hidden" id="over-overlay">
     <h1 style="color:var(--danger); text-shadow: 0 0 10px rgba(255,0,0,0.5);">下班失敗，你被撞飛了！</h1>
     <div class="big" id="final-score">0m</div>
-    <div class="small" id="best-note"></div>
 
     <div id="leaderboard-list" class="lb-list"><div class="lb-empty">讀取排行榜中…</div></div>
 
@@ -280,7 +277,6 @@
   const vlayer = $('#vlayer');
   const player = $('#player');
   const scoreEl = $('#score');
-  const bestEl = $('#best');
   const streakEl = $('#streak');
   const flashEl = $('#flash');
   const speedlinesEl = $('#speedlines');
@@ -288,8 +284,6 @@
   const overOverlay = $('#over-overlay');
   const btnLeft = $('#btn-left');
   const btnDash = $('#btn-dash');
-
-  let bestScore = 0;
 
   function svgWrap(inner, vb){
     return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible;">${inner}</svg>`;
@@ -562,11 +556,8 @@
     flashEl.classList.remove('hit'); void flashEl.offsetWidth; flashEl.classList.add('hit');
     speedlinesEl.classList.remove('on');
     const d = Math.floor(distance);
-    bestScore = Math.max(bestScore, d);
-    bestEl.textContent = bestScore+'m';
     setTimeout(()=>{
       $('#final-score').textContent = d+'m';
-      $('#best-note').textContent = d>=bestScore ? '🎉 創下新紀錄！' : ('最佳紀錄 '+bestScore+'m');
       overOverlay.classList.remove('hidden');
       cancelAnimationFrame(rafId);
       window.dispatchEvent(new CustomEvent('game-over-final', { detail:{ distance: d } }));
@@ -746,6 +737,7 @@
   const lbRef = ref(db, 'leaderboard');
 
   const listEl = document.getElementById('leaderboard-list');
+  const startListEl = document.getElementById('start-leaderboard-list');
   const entryEl = document.getElementById('name-entry');
   const inputEl = document.getElementById('name-input');
   const submitBtn = document.getElementById('name-submit-btn');
@@ -767,9 +759,11 @@
 
   function renderLeaderboard(data){
     const entries = entriesFrom(data);
-    listEl.innerHTML = entries.length
+    const html = entries.length
       ? entries.map((e,i)=>`<div class="lb-row"><span class="lb-rank">#${i+1}</span><span class="lb-name">${escapeHtml(e.name)}</span><span class="lb-dist">${Math.floor(e.distance)}m</span></div>`).join('')
       : `<div class="lb-empty">還沒有人上榜，成為第一個吧</div>`;
+    listEl.innerHTML = html;
+    startListEl.innerHTML = html;
     return entries;
   }
 
@@ -778,7 +772,9 @@
       const snap = await get(lbRef);
       return renderLeaderboard(snap.val());
     }catch(err){
-      listEl.innerHTML = `<div class="lb-empty">排行榜讀取失敗：${escapeHtml(err && err.message ? err.message : '未知錯誤')}</div>`;
+      const errHtml = `<div class="lb-empty">排行榜讀取失敗：${escapeHtml(err && err.message ? err.message : '未知錯誤')}</div>`;
+      listEl.innerHTML = errHtml;
+      startListEl.innerHTML = errHtml;
       return null;
     }
   }
