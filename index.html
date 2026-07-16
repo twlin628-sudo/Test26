@@ -479,6 +479,17 @@
   let lastCarSpawn = 0, carSpawnInterval = 1700;
   let lastScooterSpawn = 0, scooterSpawnInterval = 3200;
 
+  // 機車車流「模式」：在密集車陣／稀疏空檔之間隨機切換，模式持續時間也是隨機的
+  let trafficMode = 'sparse';
+  let modeEndAt = 0;
+  function rollTrafficMode(now){
+    trafficMode = Math.random() < 0.5 ? 'dense' : 'sparse';
+    const modeDuration = trafficMode === 'dense'
+      ? 2000 + Math.random()*2000   // 密集模式維持 2~4 秒
+      : 3000 + Math.random()*4000;  // 稀疏模式維持 3~7 秒
+    modeEndAt = now + modeDuration;
+  }
+
   const DASH_SPEED = 13; // m/s while holding 衝
 
   function scooterDifficulty(){ return Math.min(1.35, 1 + distance/500); }
@@ -492,6 +503,7 @@
     state = STATE.PLAYING;
     lastCarSpawn = performance.now(); carSpawnInterval = 1000;
     lastScooterSpawn = performance.now()+800; scooterSpawnInterval = 2600;
+    rollTrafficMode(performance.now());
     flashEl.className='';
     speedlinesEl.className='';
   }
@@ -537,8 +549,8 @@
   }
 
   function spawnScooter(now){
-    // speed roll: independent random value — some scooters crawl, some blast past
-    const speedRoll = 1300 + Math.random()*1500; // 1300~2800ms base duration
+    // speed roll: independent random value, pulled to extremes — some scooters blast past, some crawl
+    const speedRoll = 600 + Math.random()*4400; // 600~5000ms base duration
     const duration = speedRoll / scooterDifficulty();
     const el = document.createElement('div');
     el.className = 'vehicle scooter';
@@ -556,10 +568,13 @@
       carSpawnInterval = 950 + Math.random()*450; // interval scaled up with the doubled duration to keep the same jam density
       spawnCar(now);
     }
+    if(now >= modeEndAt) rollTrafficMode(now);
     if(now - lastScooterSpawn >= scooterSpawnInterval/scooterDifficulty()){
       lastScooterSpawn = now;
-      // frequency roll: independent random value — sometimes bunched, sometimes a long empty gap
-      scooterSpawnInterval = 1600 + Math.random()*4600; // 1.6~6.2s
+      // frequency roll depends on the current traffic mode — dense: packed screen, sparse: empty stretch
+      scooterSpawnInterval = trafficMode === 'dense'
+        ? 300 + Math.random()*300   // 密集模式：0.3~0.6 秒一台
+        : 1500 + Math.random()*2000; // 稀疏模式：1.5~3.5 秒一台
       spawnScooter(now);
     }
   }
