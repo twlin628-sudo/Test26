@@ -1,14 +1,15 @@
 <!--
   嘉興路行人地獄
-  版本：v1.0.0
+  版本：v1.0.1
   更新：2026-07-16 — 加入 Firebase 排行榜（前三名紀錄、擠進榜單輸入名稱）
+  v1.0.1：排行榜讀取/上傳失敗時顯示 Firebase 實際錯誤原因，方便排查是 Rules 權限問題還是真的斷網
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.0.0</title>
+<title>嘉興路行人地獄 v1.0.1</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -190,7 +191,7 @@
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.0.0</div>
+<div id="version-tag">v1.0.1</div>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
     <!-- 漆黑的鋼筋森林與零星的加班燈光 -->
@@ -777,7 +778,7 @@
       const snap = await get(lbRef);
       return renderLeaderboard(snap.val());
     }catch(err){
-      listEl.innerHTML = `<div class="lb-empty">排行榜讀取失敗（檢查網路連線）</div>`;
+      listEl.innerHTML = `<div class="lb-empty">排行榜讀取失敗：${escapeHtml(err && err.message ? err.message : '未知錯誤')}</div>`;
       return null;
     }
   }
@@ -820,7 +821,7 @@
       entryEl.classList.add('hidden');
       await loadLeaderboard();
     }catch(err){
-      alert('上傳失敗，請檢查網路連線後再試一次');
+      alert('上傳失敗：' + (err && err.message ? err.message : '未知錯誤') + '\n（若顯示 Permission denied，代表 Firebase Rules 還沒設定好，不是網路問題）');
     }finally{
       submitBtn.disabled = false;
       submitBtn.textContent = '送出紀錄';
