@@ -160,6 +160,20 @@
     cursor:pointer; font-family:inherit; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   }
   .startBtn:active{transform:translateY(4px); box-shadow:none;}
+
+  /* 🏆 排行榜（Firebase Realtime Database） */
+  .lb-list{ width:100%; max-width:280px; margin: 4px 0 18px; }
+  .lb-row{ display:flex; justify-content:space-between; align-items:center; padding:8px 12px; margin-bottom:6px;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:8px; font-size:14px; }
+  .lb-row .lb-rank{ color: var(--line-yellow); font-weight:900; width:30px; text-align:left; }
+  .lb-row .lb-name{ flex:1; text-align:left; padding-left:8px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lb-row .lb-dist{ font-family:"Courier New",monospace; color: var(--danger); font-weight:700; }
+  .lb-empty{ font-size:12px; opacity:.55; padding:10px; }
+  #name-input{
+    width:100%; max-width:240px; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.25);
+    background:rgba(255,255,255,0.08); color:#fff; font-size:15px; text-align:center; font-family:inherit;
+  }
+  #name-input:focus{ outline:none; border-color: var(--line-yellow); }
 </style>
 </head>
 <body>
@@ -232,6 +246,15 @@
     <h1 style="color:var(--danger); text-shadow: 0 0 10px rgba(255,0,0,0.5);">下班失敗，你被撞飛了！</h1>
     <div class="big" id="final-score">0m</div>
     <div class="small" id="best-note"></div>
+
+    <div id="leaderboard-list" class="lb-list"><div class="lb-empty">讀取排行榜中…</div></div>
+
+    <div id="name-entry" class="hidden" style="margin-bottom:16px;">
+      <div style="font-size:13px; color:var(--line-yellow); margin-bottom:8px; letter-spacing:2px;">🏆 擠進前三名了！輸入你的名字</div>
+      <input id="name-input" maxlength="12" placeholder="輸入名稱" autocomplete="off" />
+      <button class="startBtn" id="name-submit-btn" style="margin-top:10px; padding:10px 32px; font-size:14px;">送出紀錄</button>
+    </div>
+
     <button class="startBtn" id="retry-btn">重新超渡</button>
   </div>
 
@@ -532,6 +555,7 @@
       $('#best-note').textContent = d>=bestScore ? '🎉 創下新紀錄！' : ('最佳紀錄 '+bestScore+'m');
       overOverlay.classList.remove('hidden');
       cancelAnimationFrame(rafId);
+      window.dispatchEvent(new CustomEvent('game-over-final', { detail:{ distance: d } }));
     }, 600);
   }
 
@@ -686,6 +710,114 @@
   $('#start-btn').addEventListener('click', startGame);
   $('#retry-btn').addEventListener('click', startGame);
 })();
+</script>
+
+<script type="module">
+  // 🏆 排行榜模組（Firebase Realtime Database）— 跟主遊戲程式完全獨立，
+  // 只透過 window 的 'game-over-final' 事件跟主程式溝通，不動主遊戲任何邏輯。
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import { getDatabase, ref, get, runTransaction } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD1CpvMY8wnNjup4JNSoNeoCCjRDpvarjQ",
+    authDomain: "test26-1fe19.firebaseapp.com",
+    databaseURL: "https://test26-1fe19-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "test26-1fe19",
+    storageBucket: "test26-1fe19.firebasestorage.app",
+    messagingSenderId: "408268009637",
+    appId: "1:408268009637:web:3ee9511e2d1756d1ffdd4c"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const lbRef = ref(db, 'leaderboard');
+
+  const listEl = document.getElementById('leaderboard-list');
+  const entryEl = document.getElementById('name-entry');
+  const inputEl = document.getElementById('name-input');
+  const submitBtn = document.getElementById('name-submit-btn');
+
+  let pendingDistance = null;
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function entriesFrom(data){
+    const list = [];
+    if(data){
+      ['rank1','rank2','rank3'].forEach(k=>{ if(data[k]) list.push(data[k]); });
+    }
+    list.sort((a,b)=>b.distance-a.distance);
+    return list;
+  }
+
+  function renderLeaderboard(data){
+    const entries = entriesFrom(data);
+    listEl.innerHTML = entries.length
+      ? entries.map((e,i)=>`<div class="lb-row"><span class="lb-rank">#${i+1}</span><span class="lb-name">${escapeHtml(e.name)}</span><span class="lb-dist">${Math.floor(e.distance)}m</span></div>`).join('')
+      : `<div class="lb-empty">還沒有人上榜，成為第一個吧</div>`;
+    return entries;
+  }
+
+  async function loadLeaderboard(){
+    try{
+      const snap = await get(lbRef);
+      return renderLeaderboard(snap.val());
+    }catch(err){
+      listEl.innerHTML = `<div class="lb-empty">排行榜讀取失敗（檢查網路連線）</div>`;
+      return null;
+    }
+  }
+
+  function qualifies(entries, distance){
+    if(entries===null) return false; // 讀取失敗就不讓你送出，避免資料衝突
+    if(entries.length < 3) return true;
+    const min = Math.min(...entries.map(e=>e.distance));
+    return distance > min;
+  }
+
+  window.addEventListener('game-over-final', async (e)=>{
+    pendingDistance = e.detail.distance;
+    entryEl.classList.add('hidden');
+    listEl.innerHTML = `<div class="lb-empty">讀取排行榜中…</div>`;
+    const entries = await loadLeaderboard();
+    if(pendingDistance>0 && qualifies(entries, pendingDistance)){
+      entryEl.classList.remove('hidden');
+      inputEl.value = '';
+      setTimeout(()=>inputEl.focus(), 50);
+    }
+  });
+
+  async function submitScore(){
+    const name = (inputEl.value||'').trim().slice(0,12) || '匿名路人';
+    const distance = pendingDistance;
+    if(distance==null) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送出中…';
+    try{
+      await runTransaction(lbRef, (current)=>{
+        const list = entriesFrom(current);
+        list.push({ name, distance });
+        list.sort((a,b)=>b.distance-a.distance);
+        const top3 = list.slice(0,3);
+        const result = {};
+        top3.forEach((entry,i)=>{ result['rank'+(i+1)] = { name: entry.name, distance: entry.distance }; });
+        return result;
+      });
+      entryEl.classList.add('hidden');
+      await loadLeaderboard();
+    }catch(err){
+      alert('上傳失敗，請檢查網路連線後再試一次');
+    }finally{
+      submitBtn.disabled = false;
+      submitBtn.textContent = '送出紀錄';
+    }
+  }
+  submitBtn.addEventListener('click', submitScore);
+  inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitScore(); });
+
+  // 頁面載入時先讀一次，避免第一次結算畫面出現前是空的
+  loadLeaderboard();
 </script>
 </body>
 </html>
