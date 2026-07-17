@@ -1,16 +1,18 @@
 <!--
   嘉興路行人地獄
-  版本：v1.1.0
+  版本：v1.1.2
   更新：2026-07-16 — 加入 Firebase 排行榜（前三名紀錄、擠進榜單輸入名稱）
   v1.0.1：排行榜讀取/上傳失敗時顯示 Firebase 實際錯誤原因，方便排查是 Rules 權限問題還是真的斷網
   v1.1.0：開始畫面新增排行榜前三名顯示；拿掉遊戲中右上角「極限紀錄」與本地 bestScore 記憶邏輯（改以 Firebase 排行榜為唯一資料來源）；結束畫面輸入名稱區塊維持僅在擠進前三名時顯示
+  v1.1.1：修正快速連續遊戲結束時的非同步競爭條件 bug（用 token 序號防止上一輪過期的排行榜資料覆蓋判斷，避免距離沒有擠進前三名卻誤跳出輸入名字框）
+  v1.1.2：送出紀錄後改用 transaction 實際寫入的結果重新核對是否真的擠進前三名（避免顯示誤導）；加入 console.log 除錯訊息方便排查排行榜判斷異常
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.1.0</title>
+<title>嘉興路行人地獄 v1.1.2</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -192,7 +194,7 @@
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.1.0</div>
+<div id="version-tag">v1.1.2</div>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
     <!-- 漆黑的鋼筋森林與零星的加班燈光 -->
@@ -786,12 +788,18 @@
     return distance > min;
   }
 
+  let latestGameOverToken = 0;
+
   window.addEventListener('game-over-final', async (e)=>{
-    pendingDistance = e.detail.distance;
+    const myToken = ++latestGameOverToken;
+    const distance = e.detail.distance; // 用區域變數，不會被下一輪覆蓋
     entryEl.classList.add('hidden');
     listEl.innerHTML = `<div class="lb-empty">讀取排行榜中…</div>`;
     const entries = await loadLeaderboard();
-    if(pendingDistance>0 && qualifies(entries, pendingDistance)){
+    if(myToken !== latestGameOverToken) return; // 資料抓回來之前又死了新的一輪，這次結果已過期，放棄
+    console.log('[排行榜除錯] 本輪距離:', distance, '目前榜單:', entries);
+    if(distance>0 && qualifies(entries, distance)){
+      pendingDistance = distance;
       entryEl.classList.remove('hidden');
       inputEl.value = '';
       setTimeout(()=>inputEl.focus(), 50);
@@ -805,17 +813,24 @@
     submitBtn.disabled = true;
     submitBtn.textContent = '送出中…';
     try{
-      await runTransaction(lbRef, (current)=>{
+      const result = await runTransaction(lbRef, (current)=>{
         const list = entriesFrom(current);
         list.push({ name, distance });
         list.sort((a,b)=>b.distance-a.distance);
         const top3 = list.slice(0,3);
-        const result = {};
-        top3.forEach((entry,i)=>{ result['rank'+(i+1)] = { name: entry.name, distance: entry.distance }; });
-        return result;
+        const out = {};
+        top3.forEach((entry,i)=>{ out['rank'+(i+1)] = { name: entry.name, distance: entry.distance }; });
+        return out;
       });
+      // 用交易「真正寫入資料庫後」的結果重新核對這筆紀錄是否確實在前三名裡，
+      // 避免因為送出前的判斷跟實際寫入當下的資料不一致，誤導玩家以為上榜成功
+      const finalData = result && result.snapshot ? result.snapshot.val() : null;
+      const madeIt = !!finalData && Object.values(finalData).some(e => e && e.name===name && e.distance===distance);
       entryEl.classList.add('hidden');
       await loadLeaderboard();
+      if(!madeIt){
+        alert('可惜，送出的這個瞬間前三名剛好被別人的紀錄擠掉了，這次沒有真的上榜。');
+      }
     }catch(err){
       alert('上傳失敗：' + (err && err.message ? err.message : '未知錯誤') + '\n（若顯示 Permission denied，代表 Firebase Rules 還沒設定好，不是網路問題）');
     }finally{
