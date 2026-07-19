@@ -1,16 +1,17 @@
 <!--
   嘉興路行人地獄
-  版本：v1.2.1
+  版本：v1.2.2
   更新：2026-07-19 — 注入純程式碼 Web Audio API 互動音效模組（背景音樂、動態引擎聲、撞擊聲），完全不改動任何原有核心邏輯與畫面美工
   v1.2.0：加入主控壓縮器/總音量（所有音源改接到這裡，避免車陣多台引擎聲同時疊加爆音）；只讓最靠近的3台車+3台機車真的發出引擎聲（其餘靜音，避免雜訊與效能負擔）；新增靜音按鈕（左上角🔊/🔇）；加入 visibilitychange 監聽，App切背景再回來時自動恢復 AudioContext
   v1.2.1：關閉機車引擎聲（太吵），機車不再生成音源節點；汽車引擎聲維持不變
+  v1.2.2：汽車引擎聲音量再大幅調低（0.45→0.15），同時發聲的汽車數量從3台減少到1台，明顯更安靜
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.2.1</title>
+<title>嘉興路行人地獄 v1.2.2</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -197,7 +198,7 @@
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.2.1</div>
+<div id="version-tag">v1.2.2</div>
 <button id="mute-btn" aria-label="靜音切換">🔊</button>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
@@ -420,7 +421,7 @@
         return;
       }
       // 依據 prog 進度即時模擬車輛逼近的「音量放大」與「杜普勒高頻尖銳化」
-      const volume = Math.pow(prog, 3.5) * 0.45; 
+      const volume = Math.pow(prog, 3.5) * 0.15; 
       const freq = 45 + (prog * 190);
       const filterFreq = 180 + (prog * 700);
 
@@ -793,7 +794,7 @@
     const cars = vehicles.filter(v=>v.type==='car');
     const audibleSet = new Set();
     cars.map(v=>({v, p: Math.min(1, (now-v.spawnAt)/v.duration)}))
-        .sort((a,b)=>b.p-a.p).slice(0,3).forEach(o=>audibleSet.add(o.v));
+        .sort((a,b)=>b.p-a.p).slice(0,1).forEach(o=>audibleSet.add(o.v));
 
     for(let i=vehicles.length-1;i>=0;i--){
       const v = vehicles[i];
