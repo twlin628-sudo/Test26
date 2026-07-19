@@ -1,15 +1,16 @@
 <!--
   嘉興路行人地獄
-  版本：v1.2.0
+  版本：v1.2.1
   更新：2026-07-19 — 注入純程式碼 Web Audio API 互動音效模組（背景音樂、動態引擎聲、撞擊聲），完全不改動任何原有核心邏輯與畫面美工
   v1.2.0：加入主控壓縮器/總音量（所有音源改接到這裡，避免車陣多台引擎聲同時疊加爆音）；只讓最靠近的3台車+3台機車真的發出引擎聲（其餘靜音，避免雜訊與效能負擔）；新增靜音按鈕（左上角🔊/🔇）；加入 visibilitychange 監聽，App切背景再回來時自動恢復 AudioContext
+  v1.2.1：關閉機車引擎聲（太吵），機車不再生成音源節點；汽車引擎聲維持不變
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.2.0</title>
+<title>嘉興路行人地獄 v1.2.1</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -196,7 +197,7 @@
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.2.0</div>
+<div id="version-tag">v1.2.1</div>
 <button id="mute-btn" aria-label="靜音切換">🔊</button>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
@@ -753,10 +754,10 @@
     el.style.left = '50%'; el.style.top = '18%';
     vlayer.appendChild(el);
     const laneEndX = 27 + (Math.random()*6-3);
-    
-    // 為暴衝機車配置獨立引擎發聲器
-    const audioNodes = AudioEngine.createEngineSound();
-    
+
+    // 機車引擎聲關閉（太吵），不生成音源節點
+    const audioNodes = null;
+
     vehicles.push({ el, type:'scooter', spawnAt: now, duration, prog:0, resolved:false, laneEndX, yEnd:90, scaleEnd:1.4, audioNodes });
   }
 
@@ -788,12 +789,10 @@
       leaderProg = v.prog;
     }
 
-    // 只讓「最靠近的幾台」車輛真的發出引擎聲，避免車陣一多、振盪器疊太多變成一團雜訊
+    // 只讓「最靠近的幾台」汽車真的發出引擎聲，避免車陣一多、振盪器疊太多變成一團雜訊（機車引擎聲已關閉）
     const cars = vehicles.filter(v=>v.type==='car');
     const audibleSet = new Set();
     cars.map(v=>({v, p: Math.min(1, (now-v.spawnAt)/v.duration)}))
-        .sort((a,b)=>b.p-a.p).slice(0,3).forEach(o=>audibleSet.add(o.v));
-    scooters.map(v=>({v, p:v.prog}))
         .sort((a,b)=>b.p-a.p).slice(0,3).forEach(o=>audibleSet.add(o.v));
 
     for(let i=vehicles.length-1;i>=0;i--){
@@ -805,7 +804,7 @@
         if(v.audioNodes) AudioEngine.updateEngineSound(v.audioNodes, p, audibleSet.has(v)); // 更新排隊汽車逼近音效
       } else {
         ease = v.prog*v.prog*(3-2*v.prog);
-        if(v.audioNodes) AudioEngine.updateEngineSound(v.audioNodes, v.prog, audibleSet.has(v)); // 更新狂暴機車逼近音效
+        if(v.audioNodes) AudioEngine.updateEngineSound(v.audioNodes, v.prog, audibleSet.has(v)); // 機車音源已關閉(audioNodes為null)，此行不會執行，保留以防之後想重新開啟
       }
       const scale = 0.12 + ease*(v.scaleEnd-0.12);
       const yTop = 18;
