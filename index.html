@@ -1,19 +1,15 @@
 <!--
   嘉興路行人地獄
-  版本：v1.1.3
-  更新：2026-07-16 — 加入 Firebase 排行榜（前三名紀錄、擠進榜單輸入名稱）
-  v1.0.1：排行榜讀取/上傳失敗時顯示 Firebase 實際錯誤原因，方便排查是 Rules 權限問題還是真的斷網
-  v1.1.0：開始畫面新增排行榜前三名顯示；拿掉遊戲中右上角「極限紀錄」與本地 bestScore 記憶邏輯（改以 Firebase 排行榜為唯一資料來源）；結束畫面輸入名稱區塊維持僅在擠進前三名時顯示
-  v1.1.1：修正快速連續遊戲結束時的非同步競爭條件 bug（用 token 序號防止上一輪過期的排行榜資料覆蓋判斷，避免距離沒有擠進前三名卻誤跳出輸入名字框）
-  v1.1.2：送出紀錄後改用 transaction 實際寫入的結果重新核對是否真的擠進前三名（避免顯示誤導）；加入 console.log 除錯訊息方便排查排行榜判斷異常
-  v1.1.3【根因修復】：找到真正原因——CSS 只定義了 .overlay.hidden{display:none}，但 #name-entry 只有 class="hidden" 沒有 class="overlay"，導致該規則從未生效，輸入名字框其實從頭到尾都是顯示狀態，跟前三名判斷邏輯完全無關。新增通用 .hidden{display:none!important} 規則修正；同時移除已用不到的除錯 console.log
+  版本：v1.2.0
+  更新：2026-07-19 — 注入純程式碼 Web Audio API 互動音效模組（背景音樂、動態引擎聲、撞擊聲），完全不改動任何原有核心邏輯與畫面美工
+  v1.2.0：加入主控壓縮器/總音量（所有音源改接到這裡，避免車陣多台引擎聲同時疊加爆音）；只讓最靠近的3台車+3台機車真的發出引擎聲（其餘靜音，避免雜訊與效能負擔）；新增靜音按鈕（左上角🔊/🔇）；加入 visibilitychange 監聽，App切背景再回來時自動恢復 AudioContext
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.1.3</title>
+<title>嘉興路行人地獄 v1.2.0</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -103,9 +99,9 @@
   #street-sign {
     position: absolute;
     right: 15px;
-    bottom: 130px; /* 剛好安全地浮在控制面板上方 */
+    bottom: 130px;
     z-index: 25;
-    background: #005a36; /* 台灣標準路牌綠 */
+    background: #005a36;
     border: 3px solid #ffffff;
     border-radius: 4px;
     padding: 4px 10px;
@@ -172,7 +168,6 @@
   }
   .startBtn:active{transform:translateY(4px); box-shadow:none;}
 
-  /* 🏆 排行榜（Firebase Realtime Database） */
   .lb-list{ width:100%; max-width:280px; margin: 4px 0 18px; }
   .lb-row{ display:flex; justify-content:space-between; align-items:center; padding:8px 12px; margin-bottom:6px;
     background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:8px; font-size:14px; }
@@ -186,20 +181,25 @@
   }
   #name-input:focus{ outline:none; border-color: var(--line-yellow); }
 
-  /* 版號標籤 */
   #version-tag{
     position:absolute; top:6px; right:10px; z-index:60;
     font-size:10px; letter-spacing:1px; color:rgba(255,255,255,0.35);
     font-family:"Courier New",monospace; pointer-events:none;
   }
+  #mute-btn{
+    position:absolute; top:4px; left:8px; z-index:60;
+    width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,0.25);
+    background:rgba(0,0,0,0.45); color:#fff; font-size:15px; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
 </style>
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.1.3</div>
+<div id="version-tag">v1.2.0</div>
+<button id="mute-btn" aria-label="靜音切換">🔊</button>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
-    <!-- 漆黑的鋼筋森林與零星的加班燈光 -->
     <rect x="0" y="20" width="40" height="40" fill="#06040a"/>
     <circle cx="15" cy="30" r="1.5" fill="#f1c40f" opacity="0.6"/>
     <circle cx="25" cy="40" r="1.5" fill="#f1c40f" opacity="0.8"/>
@@ -214,7 +214,7 @@
     <rect x="235" y="22" width="5" height="5" fill="#f1c40f" opacity="0.7"/>
     <rect x="270" y="22" width="25" height="38" fill="#040308"/>
     <rect x="310" y="8" width="40" height="52" fill="#090713"/>
-    <rect x="325" y="18" width="6" height="6" fill="#ff3333" opacity="0.8"/> <!-- 頂端閃爍紅燈 -->
+    <rect x="325" y="18" width="6" height="6" fill="#ff3333" opacity="0.8"/>
     <rect x="365" y="15" width="35" height="45" fill="#040308"/>
   </svg>
 
@@ -227,7 +227,6 @@
   <div id="vlayer"></div>
   <div id="speedlines"></div>
 
-  <!-- 🎯 右下角「嘉興路」路牌 -->
   <div id="street-sign">
     <div class="chinese">嘉興路</div>
     <div class="english">Jiaxing Rd.</div>
@@ -289,6 +288,193 @@
   const btnLeft = $('#btn-left');
   const btnDash = $('#btn-dash');
 
+  // ==========================================
+  // 🎵 純程式碼 Web Audio API 音效合成引擎模組
+  // ==========================================
+  const AudioEngine = {
+    ctx: null,
+    bgmOsc: null,
+    bgmGain: null,
+    masterGain: null,
+    compressor: null,
+    muted: false,
+
+    init() {
+      if (this.ctx) return;
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // 主控壓縮器＋總音量：所有音源都先經過這裡再輸出，避免多台車引擎聲同時疊加時爆音/破音
+      this.compressor = this.ctx.createDynamicsCompressor();
+      this.compressor.threshold.setValueAtTime(-24, this.ctx.currentTime);
+      this.compressor.knee.setValueAtTime(30, this.ctx.currentTime);
+      this.compressor.ratio.setValueAtTime(12, this.ctx.currentTime);
+      this.compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+      this.compressor.release.setValueAtTime(0.25, this.ctx.currentTime);
+
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.setValueAtTime(this.muted ? 0 : 1, this.ctx.currentTime);
+
+      this.compressor.connect(this.masterGain);
+      this.masterGain.connect(this.ctx.destination);
+
+      // 切到背景/其他App再回來時，iOS常會把AudioContext停掉，回來時嘗試自動恢復
+      if (!this._visHooked) {
+        this._visHooked = true;
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(()=>{});
+          }
+        });
+      }
+    },
+
+    setMuted(m) {
+      this.muted = m;
+      if (this.masterGain && this.ctx) {
+        this.masterGain.gain.setTargetAtTime(m ? 0 : 1, this.ctx.currentTime, 0.05);
+      }
+    },
+    
+    startBGM() {
+      this.init();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.bgmOsc) return;
+
+      // 產生深夜壓迫感重低音波
+      this.bgmOsc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      this.bgmGain = this.ctx.createGain();
+
+      this.bgmOsc.type = 'sawtooth';
+      this.bgmOsc.frequency.setValueAtTime(55, this.ctx.currentTime); // A1 低音頻
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(130, this.ctx.currentTime);
+
+      this.bgmGain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+
+      this.bgmOsc.connect(filter);
+      filter.connect(this.bgmGain);
+      this.bgmGain.connect(this.compressor);
+
+      this.bgmOsc.start();
+      this.pulseFilter(filter);
+    },
+
+    pulseFilter(filter) {
+      if (!this.bgmOsc || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        // 製造迷幻低頻霓虹韻律感
+        filter.frequency.setValueAtTime(110, now);
+        filter.frequency.linearRampToValueAtTime(170, now + 0.35);
+        filter.frequency.linearRampToValueAtTime(110, now + 0.7);
+      } catch(e){}
+      setTimeout(() => { if(this.bgmOsc) this.pulseFilter(filter); }, 700);
+    },
+
+    setDashing(isDashing) {
+      if (!this.ctx || !this.bgmOsc) return;
+      const now = this.ctx.currentTime;
+      // 衝刺時拉高背景音調增強危險與速度感
+      this.bgmOsc.frequency.linearRampToValueAtTime(isDashing ? 65.41 : 55, now + 0.2);
+    },
+
+    stopBGM() {
+      if (this.bgmOsc) {
+        try { this.bgmOsc.stop(); } catch(e){}
+        this.bgmOsc.disconnect();
+        this.bgmOsc = null;
+      }
+    },
+
+    createEngineSound() {
+      if (!this.ctx) return null;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'triangle'; // 機車粗糙感波形
+      osc.frequency.setValueAtTime(45, this.ctx.currentTime);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(180, this.ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.0, this.ctx.currentTime); // 初始極遠處無聲
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.compressor);
+      osc.start();
+
+      return { osc, gain, filter };
+    },
+
+    updateEngineSound(nodes, prog, audible) {
+      if (!this.ctx || !nodes) return;
+      const now = this.ctx.currentTime;
+      if (!audible) {
+        // 不在「最靠近的幾台」名單內，快速淡到無聲（振盪器繼續跑但沒有聲音輸出，避免疊加雜訊）
+        nodes.gain.gain.setTargetAtTime(0, now, 0.08);
+        return;
+      }
+      // 依據 prog 進度即時模擬車輛逼近的「音量放大」與「杜普勒高頻尖銳化」
+      const volume = Math.pow(prog, 3.5) * 0.45; 
+      const freq = 45 + (prog * 190);
+      const filterFreq = 180 + (prog * 700);
+
+      nodes.gain.gain.setTargetAtTime(volume, now, 0.04);
+      nodes.osc.frequency.setTargetAtTime(freq, now, 0.04);
+      nodes.filter.frequency.setTargetAtTime(filterFreq, now, 0.04);
+    },
+
+    stopEngineSound(nodes) {
+      if (!nodes) return;
+      try {
+        nodes.gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        setTimeout(() => {
+          try {
+            nodes.osc.stop();
+            nodes.osc.disconnect();
+            nodes.gain.disconnect();
+            nodes.filter.disconnect();
+          } catch(e){}
+        }, 50);
+      } catch(e){}
+    },
+
+    playCrash() {
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const bufferSize = this.ctx.sampleRate * 0.45;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      // 生成爆炸撞擊白噪音
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noiseNode = this.ctx.createBufferSource();
+      noiseNode.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(280, now);
+      filter.frequency.exponentialRampToValueAtTime(60, now + 0.45);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.7, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+
+      noiseNode.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.compressor);
+      
+      noiseNode.start(now);
+    }
+  };
+
   function svgWrap(inner, vb){
     return `<svg viewBox="${vb}" width="100%" height="100%" style="overflow:visible;">${inner}</svg>`;
   }
@@ -299,37 +485,26 @@
     return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
   }
 
-  // 🧑 疲憊社畜玩家設計 (死魚眼、黑眼圈、凌亂領帶、深灰色廉價西裝)
   const PLAYER_SVG = svgWrap(`
     <ellipse cx="30" cy="92" rx="15" ry="5" fill="rgba(0,0,0,0.45)"/>
-    <!-- 西裝褲 -->
     <path d="M18 92 L22 52 Q23 42 30 42 Q37 42 38 52 L42 92 Z" fill="#2c3e50"/>
-    <!-- 西裝外套 -->
     <path d="M16 52 L22 45 L38 45 L44 52 L41 75 L19 75 Z" fill="#1b2631"/>
-    <!-- 疲累的死白臉龐 -->
     <circle cx="30" cy="24" r="11" fill="#f5cba7"/>
-    <!-- 凹陷的黑眼圈眼窩 -->
     <ellipse cx="26" cy="24" rx="3" ry="2" fill="rgba(139,112,148,0.4)"/>
     <ellipse cx="34" cy="24" rx="3" ry="2" fill="rgba(139,112,148,0.4)"/>
     <ellipse cx="26" cy="24" rx="1" ry="1" fill="#111"/>
     <ellipse cx="34" cy="24" rx="1" ry="1" fill="#111"/>
-    <!-- 緊抿無奈的嘴唇 -->
     <line x1="26" y1="30" x2="34" y2="30" stroke="#c0392b" stroke-width="1.5"/>
-    <!-- 雜亂的黑髮 -->
     <path d="M18 20 Q30 5 42 20 Q40 11 30 10 Q20 11 18 20Z" fill="#111111"/>
-    <!-- 袖子與慘白無力的手 -->
     <rect x="11" y="48" width="7" height="22" rx="3" fill="#1b2631"/>
     <rect x="42" y="48" width="7" height="22" rx="3" fill="#1b2631"/>
-    <!-- 白襯衫與凌亂的紅領帶 -->
     <path d="M27 45 L30 54 L33 45 Z" fill="#ffffff"/>
     <path d="M29 48 L30 68 L32 68 L31 48 Z" fill="#c0392b"/>
   `, "0 0 60 105");
 
-  // 美工升級：調亮汽車的基本顏色，讓車輛不那麼黯淡
   const CAR_COLORS = ["#c0392b","#7f8c8d","#2980b9","#e67e22","#8e44ad","#16a085"];
   let vehicleUid = 0;
 
-  // 🚗 & 🏍️ 深夜高對比大燈燈光設計
   function vehicleSVG(type){
     const uid = 'v'+(vehicleUid++);
     if(type==='car'){
@@ -337,30 +512,23 @@
       return svgWrap(`
         <defs>
           <linearGradient id="body${uid}" x1="0" y1="0" x2="0" y2="1">
-            <!-- 美工升級：降低過度暗化的 shade，使車殼更清晰 -->
             <stop offset="0" stop-color="${shade(c,-10)}"/>
             <stop offset="0.5" stop-color="${c}"/>
             <stop offset="1" stop-color="${shade(c,20)}"/>
           </linearGradient>
-          <!-- 汽車黃色強光大燈渲染 -->
           <radialGradient id="glowCar" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="rgba(255, 240, 150, 1)"/>
             <stop offset="35%" stop-color="rgba(255, 220, 80, 0.45)"/>
             <stop offset="100%" stop-color="rgba(255, 220, 80, 0)"/>
           </radialGradient>
         </defs>
-        <!-- 大燈放射光束效果 -->
         <polygon points="28,62 -120,250 80,250 28,62" fill="url(#glowCar)" opacity="0.14"/>
         <polygon points="132,62 80,250 280,250 132,62" fill="url(#glowCar)" opacity="0.14"/>
-
         <ellipse cx="80" cy="102" rx="64" ry="7" fill="rgba(0,0,0,0.5)"/>
-        <!-- 車體 -->
         <path d="M12 90 L16 46 Q20 16 60 12 L100 12 Q140 16 144 46 L148 90 Z" fill="url(#body${uid})"/>
-        <!-- 美工升級：微調車窗顏色透出光澤 -->
         <path d="M32 46 Q38 24 62 22 L98 22 Q122 24 128 47 Z" fill="#1c2833" opacity="0.95"/>
         <circle cx="34" cy="90" r="16" fill="#050505"/>
         <circle cx="126" cy="90" r="16" fill="#050505"/>
-        <!-- 刺眼大燈 -->
         <circle cx="28" cy="62" r="13" fill="url(#glowCar)"/>
         <circle cx="28" cy="62" r="5" fill="#fff"/>
         <circle cx="132" cy="62" r="13" fill="url(#glowCar)"/>
@@ -368,7 +536,6 @@
         <rect x="58" y="82" width="44" height="10" rx="2" fill="#2d3436"/>
       `, "0 0 160 110");
     }
-    // 🏍️ 機車：刺眼白光、深色盔甲與血紅安全帽
     return svgWrap(`
       <defs>
         <radialGradient id="glowScooter" cx="50%" cy="50%" r="50%">
@@ -377,30 +544,21 @@
           <stop offset="100%" stop-color="rgba(255, 240, 180, 0)"/>
         </radialGradient>
       </defs>
-      <!-- 強烈機車大燈光束 -->
       <polygon points="60,62 -140,250 260,250 60,62" fill="url(#glowScooter)" opacity="0.2"/>
-
       <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.6)"/>
       <circle cx="60" cy="110" r="20" fill="#0a0a0a"/>
-      <!-- 美工升級：車殼調亮為深鐵灰 -->
       <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#34495e"/>
-      <!-- 美工升級：機車把手周圍調亮 -->
       <rect x="22" y="66" width="76" height="8" rx="4" fill="#7f8c8d"/>
-      <!-- 超亮大燈 -->
       <circle cx="60" cy="62" r="16" fill="url(#glowScooter)"/>
       <circle cx="60" cy="62" r="6" fill="#fff"/>
-      <!-- 美工升級：騎士改穿明顯的藍色雨衣外套，取代原本隱形的純黑 -->
       <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#2980b9"/>
-      <!-- 🎯 地獄風亮紅安全帽與發光護目鏡 -->
       <circle cx="60" cy="14" r="16" fill="#c0392b"/>
-      <path d="M48 12 Q60 22 72 12" stroke="#00e676" stroke-width="3.5" fill="none"/> <!-- 劇毒綠冷光鏡片 -->
+      <path d="M48 12 Q60 22 72 12" stroke="#00e676" stroke-width="3.5" fill="none"/>
       <path d="M45 14 Q60 -4 75 14 Z" fill="#111"/>
     `, "0 -10 120 130");
   }
 
-  // 🏢 【地獄深夜霓虹】招牌與建築
   function buildingsMarkup(isRightSide){
-    // 美工升級：加入路燈光暈的 defs
     let s = `
       <defs>
         <linearGradient id="streetLamp" x1="0" y1="0" x2="0" y2="1">
@@ -426,9 +584,7 @@
       { name: "東陽無人工廠", bg: "#12051c", text: "#a55eea", stroke: "#a55eea" }
     ];
     
-    // 美工升級：繪製路燈組件，供下方呼叫
     const lampSVG = `
-      <!-- 暖黃色路燈延伸與發光圓錐 -->
       <path d="M185 50 Q220 10 255 15" stroke="#111" stroke-width="4" fill="none"/>
       <rect x="245" y="11" width="25" height="8" rx="3" fill="#0a0a0a"/>
       <ellipse cx="257" cy="19" rx="8" ry="3" fill="#fff" filter="drop-shadow(0 0 10px #f1c40f)"/>
@@ -441,27 +597,21 @@
         const shop = leftShops[i % leftShops.length];
         s += `
           <g transform="translate(0 ${y})">
-            <!-- 暗黑建築牆面 -->
             <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#18191d' : '#111215'}" stroke="#25262b" stroke-width="1"/>
             ${i%2===0 ?
               `<rect x="20" y="15" width="60" height="40" fill="#07080a" rx="2"/>
-               <!-- 偶爾有一戶在爆肝加班，透出黃光 -->
                <rect x="22" y="17" width="26" height="36" fill="${i%4===0 ? '#f39c12' : '#07080a'}" opacity="${i%4===0 ? '0.8' : '1'}"/>
                <rect x="52" y="17" width="26" height="36" fill="#07080a"/>
                <path d="M15 15 L85 15 L85 60 L15 60 Z" fill="none" stroke="#252a30" stroke-width="2"/>
                <path d="M38 15 L38 60 M62 15 L62 60 M15 30 L85 30 M15 45 L85 45" stroke="#252a30" stroke-width="1.5"/>` :
               `<rect x="25" y="20" width="50" height="30" fill="#07080a" rx="1"/>
-               <!-- 故障閃爍的藍色電視光芒 -->
                <rect x="27" y="22" width="22" height="26" fill="#00d2d3" opacity="${i%3===0 ? '0.4' : '0.05'}"/>
                <rect x="51" y="22" width="22" height="26" fill="#00d2d3" opacity="0.05"/>
                <rect x="80" y="35" width="18" height="15" fill="#1b1c20" rx="1" stroke="#252a30"/>`
             }
             ${Array.from({length:6}).map((_,k)=>`<line x1="${k*35+10}" y1="80" x2="${k*35+10}" y2="110" stroke="rgba(0,0,0,0.6)" stroke-width="2"/>`).join('')}
-            <!-- 霓虹外發光招牌 -->
             <rect x="10" y="62" width="170" height="32" rx="3" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="2" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
             <text x="95" y="84" font-family="'Microsoft JhengHei', sans-serif" font-weight="bold" font-size="14" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
-            
-            <!-- 美工升級：間隔性安插路燈 -->
             ${i%2===0 ? lampSVG : ''}
           </g>
         `;
@@ -469,7 +619,6 @@
         const shop = rightShops[i % rightShops.length];
         s += `
           <g transform="translate(0 ${y})">
-            <!-- 右側鐵皮暗牆 -->
             <rect x="0" y="0" width="200" height="110" fill="${i%2===0 ? '#1d1e22' : '#141518'}" stroke="#25262b" stroke-width="1"/>
             ${Array.from({length: 10}).map((_, k) => `<line x1="${k*20}" y1="0" x2="${k*20}" y2="50" stroke="#0b0c0e" stroke-width="1.5" opacity="0.8"/>`).join('')}
             ${i%2===0 ?
@@ -481,18 +630,14 @@
               `<rect x="145" y="0" width="16" height="40" fill="#25262b" stroke="#07080a"/>
                <path d="M140 40 L166 40 L160 50 L146 50 Z" fill="#07080a"/>`
             }
-            <!-- 霓虹右側招牌 -->
             <rect x="5" y="55" width="190" height="42" rx="2" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="3" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
             <text x="100" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
             <rect x="0" y="97" width="200" height="13" fill="rgba(0,0,0,0.5)"/>
-            
-            <!-- 美工升級：右側同樣安插路燈 -->
             ${i%2===0 ? lampSVG : ''}
           </g>
         `;
       }
     }
-    // 美工升級：加入 overflow:visible 以確保路燈的光錐能延伸出建築物外框
     return `<svg viewBox="0 0 200 660" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" style="position:absolute;inset:0; overflow:visible;">${s}</svg>`;
   }
   $('#buildings-left').innerHTML = buildingsMarkup(false);
@@ -510,27 +655,30 @@
   let rafId = null;
   let lastFrameTime = 0;
 
-  // two independent traffic tracks
   let lastCarSpawn = 0, carSpawnInterval = 1700;
   let lastScooterSpawn = 0, scooterSpawnInterval = 3200;
 
-  // 機車車流「模式」：在密集車陣／稀疏空檔之間隨機切換，模式持續時間也是隨機的
   let trafficMode = 'sparse';
   let modeEndAt = 0;
   function rollTrafficMode(now){
     trafficMode = Math.random() < 0.5 ? 'dense' : 'sparse';
     const modeDuration = trafficMode === 'dense'
-      ? 2000 + Math.random()*2000   // 密集模式維持 2~4 秒
-      : 3000 + Math.random()*4000;  // 稀疏模式維持 3~7 秒
+      ? 2000 + Math.random()*2000
+      : 3000 + Math.random()*4000;
     modeEndAt = now + modeDuration;
   }
 
-  const DASH_SPEED = 13; // m/s while holding 衝
+  const DASH_SPEED = 13;
 
   function scooterDifficulty(){ return Math.min(1.35, 1 + distance/500); }
 
   function resetGame(){
-    distance = 0; vehicles.forEach(v=>v.el.remove()); vehicles=[];
+    distance = 0; 
+    vehicles.forEach(v=>{
+      if(v.audioNodes) AudioEngine.stopEngineSound(v.audioNodes); // 確保重置時乾淨卸載音頻節點
+      v.el.remove();
+    }); 
+    vehicles=[];
     dodgedCount = 0;
     scoreEl.textContent = '0m';
     streakEl.textContent = '';
@@ -544,6 +692,7 @@
   }
 
   function startGame(){
+    AudioEngine.startBGM(); // 開啟背景低音音樂
     startOverlay.classList.add('hidden');
     overOverlay.classList.add('hidden');
     resetGame();
@@ -555,6 +704,14 @@
   function endGame(){
     if(state===STATE.OVER) return;
     state = STATE.OVER;
+    
+    // 遊戲結束瞬間關閉引擎與 BGM，並觸發人體撞擊聲
+    vehicles.forEach(v => {
+      if(v.audioNodes) AudioEngine.stopEngineSound(v.audioNodes);
+    });
+    AudioEngine.stopBGM();
+    AudioEngine.playCrash();
+
     player.classList.remove('hiding','dashing');
     player.classList.add('dead');
     flashEl.classList.remove('hit'); void flashEl.offsetWidth; flashEl.classList.add('hit');
@@ -568,7 +725,7 @@
     }, 600);
   }
 
-  const CAR_DURATION = 13000; // fixed & identical for every car — guarantees no overtaking, and 2x slower than before
+  const CAR_DURATION = 13000;
 
   function spawnCar(now){
     const el = document.createElement('div');
@@ -577,13 +734,17 @@
     el.style.width = '78px';
     el.style.left = '50%'; el.style.top = '18%';
     vlayer.appendChild(el);
-    const laneEndX = 43 + (Math.random()*8-4); // cars stay more central, further separated from the scooter lane
-    vehicles.push({ el, type:'car', spawnAt: now, duration: CAR_DURATION, laneEndX, yEnd:120, scaleEnd:1.55 });
+    const laneEndX = 43 + (Math.random()*8-4);
+    
+    // 為排隊汽車生成沉悶的引擎低鳴聲（鋸齒波波形）
+    const audioNodes = AudioEngine.createEngineSound();
+    if(audioNodes && audioNodes.osc) audioNodes.osc.type = 'sawtooth';
+    
+    vehicles.push({ el, type:'car', spawnAt: now, duration: CAR_DURATION, laneEndX, yEnd:120, scaleEnd:1.55, audioNodes });
   }
 
   function spawnScooter(now){
-    // speed roll: independent random value, pulled to extremes — some scooters blast past, some crawl
-    const speedRoll = 600 + Math.random()*4400; // 600~5000ms base duration
+    const speedRoll = 600 + Math.random()*4400;
     const duration = speedRoll / scooterDifficulty();
     const el = document.createElement('div');
     el.className = 'vehicle scooter';
@@ -591,33 +752,35 @@
     el.style.width = '58px';
     el.style.left = '50%'; el.style.top = '18%';
     vlayer.appendChild(el);
-    const laneEndX = 27 + (Math.random()*6-3); // hugs the shoulder edge — the real threat
-    vehicles.push({ el, type:'scooter', spawnAt: now, duration, prog:0, resolved:false, laneEndX, yEnd:90, scaleEnd:1.4 });
+    const laneEndX = 27 + (Math.random()*6-3);
+    
+    // 為暴衝機車配置獨立引擎發聲器
+    const audioNodes = AudioEngine.createEngineSound();
+    
+    vehicles.push({ el, type:'scooter', spawnAt: now, duration, prog:0, resolved:false, laneEndX, yEnd:90, scaleEnd:1.4, audioNodes });
   }
 
   function trySpawn(now){
     if(now - lastCarSpawn >= carSpawnInterval){
       lastCarSpawn = now;
-      carSpawnInterval = 950 + Math.random()*450; // interval scaled up with the doubled duration to keep the same jam density
+      carSpawnInterval = 950 + Math.random()*450;
       spawnCar(now);
     }
     if(now >= modeEndAt) rollTrafficMode(now);
     if(now - lastScooterSpawn >= scooterSpawnInterval/scooterDifficulty()){
       lastScooterSpawn = now;
-      // frequency roll depends on the current traffic mode — dense: packed screen, sparse: empty stretch
       scooterSpawnInterval = trafficMode === 'dense'
-        ? 300 + Math.random()*300   // 密集模式：0.3~0.6 秒一台
-        : 1500 + Math.random()*2000; // 稀疏模式：1.5~3.5 秒一台
+        ? 300 + Math.random()*300
+        : 1500 + Math.random()*2000;
       spawnScooter(now);
     }
   }
 
-  const SCOOTER_MIN_GAP = 0.045; // how far behind the leader a blocked scooter must stay (in progress units)
+  const SCOOTER_MIN_GAP = 0.045;
 
   function updateVehicles(now, dt){
-    // follow-the-leader: scooters can never pass an earlier-spawned scooter still on screen
-    const scooters = vehicles.filter(v=>v.type==='scooter'); // already in spawn order
-    let leaderProg = 2; // sentinel: the frontmost scooter has no one to be blocked by
+    const scooters = vehicles.filter(v=>v.type==='scooter');
+    let leaderProg = 2;
     for(const v of scooters){
       v.prog = Math.min(1, v.prog + dt / v.duration);
       const fill = leaderProg - SCOOTER_MIN_GAP;
@@ -625,14 +788,24 @@
       leaderProg = v.prog;
     }
 
+    // 只讓「最靠近的幾台」車輛真的發出引擎聲，避免車陣一多、振盪器疊太多變成一團雜訊
+    const cars = vehicles.filter(v=>v.type==='car');
+    const audibleSet = new Set();
+    cars.map(v=>({v, p: Math.min(1, (now-v.spawnAt)/v.duration)}))
+        .sort((a,b)=>b.p-a.p).slice(0,3).forEach(o=>audibleSet.add(o.v));
+    scooters.map(v=>({v, p:v.prog}))
+        .sort((a,b)=>b.p-a.p).slice(0,3).forEach(o=>audibleSet.add(o.v));
+
     for(let i=vehicles.length-1;i>=0;i--){
       const v = vehicles[i];
       let ease;
       if(v.type==='car'){
         const p = Math.min(1, (now - v.spawnAt)/v.duration);
-        ease = p; // strictly linear/uniform speed so none can overtake another
+        ease = p;
+        if(v.audioNodes) AudioEngine.updateEngineSound(v.audioNodes, p, audibleSet.has(v)); // 更新排隊汽車逼近音效
       } else {
-        ease = v.prog*v.prog*(3-2*v.prog); // smoothstep of the (possibly blocked) progress
+        ease = v.prog*v.prog*(3-2*v.prog);
+        if(v.audioNodes) AudioEngine.updateEngineSound(v.audioNodes, v.prog, audibleSet.has(v)); // 更新狂暴機車逼近音效
       }
       const scale = 0.12 + ease*(v.scaleEnd-0.12);
       const yTop = 18;
@@ -651,13 +824,13 @@
       }
       const cleanupAt = v.type==='car' ? v.spawnAt+v.duration : (v.resolved ? v.resolvedAt+280 : null);
       if(cleanupAt!==null && now >= cleanupAt){
+        if(v.audioNodes) AudioEngine.stopEngineSound(v.audioNodes); // 銷毀離開畫面車輛的音頻資源
         v.el.remove();
         vehicles.splice(i,1);
       }
     }
   }
 
-  // only scooters can ever hit the player — cars are just slow-moving traffic-jam background
   function resolveImpact(v){
     if(state!==STATE.PLAYING) return;
     if(isHiding){
@@ -680,6 +853,7 @@
     player.classList.toggle('dashing', v);
     speedlinesEl.classList.toggle('on', v);
     btnDash.classList.toggle('pressed', v);
+    AudioEngine.setDashing(v); // 衝刺時即時改變 BGM 頻率
   }
 
   function loop(now){
@@ -718,12 +892,19 @@
 
   $('#start-btn').addEventListener('click', startGame);
   $('#retry-btn').addEventListener('click', startGame);
+
+  const muteBtn = $('#mute-btn');
+  let audioMuted = false;
+  muteBtn.addEventListener('click', ()=>{
+    audioMuted = !audioMuted;
+    AudioEngine.setMuted(audioMuted);
+    muteBtn.textContent = audioMuted ? '🔇' : '🔊';
+  });
 })();
 </script>
 
 <script type="module">
-  // 🏆 排行榜模組（Firebase Realtime Database）— 跟主遊戲程式完全獨立，
-  // 只透過 window 的 'game-over-final' 事件跟主程式溝通，不動主遊戲任何邏輯。
+  // 🏆 排行榜模組（Firebase Realtime Database）— 原封不動，未受任何音訊注入影響
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
   import { getDatabase, ref, get, runTransaction } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 
@@ -784,7 +965,7 @@
   }
 
   function qualifies(entries, distance){
-    if(entries===null) return false; // 讀取失敗就不讓你送出，避免資料衝突
+    if(entries===null) return false;
     if(entries.length < 3) return true;
     const min = Math.min(...entries.map(e=>e.distance));
     return distance > min;
@@ -794,11 +975,11 @@
 
   window.addEventListener('game-over-final', async (e)=>{
     const myToken = ++latestGameOverToken;
-    const distance = e.detail.distance; // 用區域變數，不會被下一輪覆蓋
+    const distance = e.detail.distance;
     entryEl.classList.add('hidden');
     listEl.innerHTML = `<div class="lb-empty">讀取排行榜中…</div>`;
     const entries = await loadLeaderboard();
-    if(myToken !== latestGameOverToken) return; // 資料抓回來之前又死了新的一輪，這次結果已過期，放棄
+    if(myToken !== latestGameOverToken) return;
     if(distance>0 && qualifies(entries, distance)){
       pendingDistance = distance;
       entryEl.classList.remove('hidden');
@@ -823,8 +1004,6 @@
         top3.forEach((entry,i)=>{ out['rank'+(i+1)] = { name: entry.name, distance: entry.distance }; });
         return out;
       });
-      // 用交易「真正寫入資料庫後」的結果重新核對這筆紀錄是否確實在前三名裡，
-      // 避免因為送出前的判斷跟實際寫入當下的資料不一致，誤導玩家以為上榜成功
       const finalData = result && result.snapshot ? result.snapshot.val() : null;
       const madeIt = !!finalData && Object.values(finalData).some(e => e && e.name===name && e.distance===distance);
       entryEl.classList.add('hidden');
@@ -842,7 +1021,6 @@
   submitBtn.addEventListener('click', submitScore);
   inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitScore(); });
 
-  // 頁面載入時先讀一次，避免第一次結算畫面出現前是空的
   loadLeaderboard();
 </script>
 </body>
