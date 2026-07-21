@@ -1,17 +1,18 @@
 <!--
   嘉興路行人地獄
-  版本：v1.2.2
+  版本：v1.3.0
   更新：2026-07-19 — 注入純程式碼 Web Audio API 互動音效模組（背景音樂、動態引擎聲、撞擊聲），完全不改動任何原有核心邏輯與畫面美工
   v1.2.0：加入主控壓縮器/總音量（所有音源改接到這裡，避免車陣多台引擎聲同時疊加爆音）；只讓最靠近的3台車+3台機車真的發出引擎聲（其餘靜音，避免雜訊與效能負擔）；新增靜音按鈕（左上角🔊/🔇）；加入 visibilitychange 監聽，App切背景再回來時自動恢復 AudioContext
   v1.2.1：關閉機車引擎聲（太吵），機車不再生成音源節點；汽車引擎聲維持不變
   v1.2.2：汽車引擎聲音量再大幅調低（0.45→0.15），同時發聲的汽車數量從3台減少到1台，明顯更安靜
+  v1.3.0：修正右側招牌文字鏡像問題（用局部反向scale抵銷外層鏡像，文字恢復正常可讀，建築版面鏡像佈局維持不變）；機車車身與安全帽改為隨機多色（原本固定同一種配色），跟汽車一樣有顏色變化
 -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>嘉興路行人地獄 v1.2.2</title>
+<title>嘉興路行人地獄 v1.3.0</title>
 <style>
   :root{
     --sky-top: #05030a;      /* 深夜極黑紫 */
@@ -198,7 +199,7 @@
 </head>
 <body>
 <div id="stage">
-<div id="version-tag">v1.2.2</div>
+<div id="version-tag">v1.3.0</div>
 <button id="mute-btn" aria-label="靜音切換">🔊</button>
 
   <svg id="skyline" viewBox="0 0 400 60" preserveAspectRatio="none">
@@ -505,6 +506,8 @@
   `, "0 0 60 105");
 
   const CAR_COLORS = ["#c0392b","#7f8c8d","#2980b9","#e67e22","#8e44ad","#16a085"];
+  const SCOOTER_COLORS = ["#e74c3c","#2980b9","#27ae60","#f1c40f","#9b59b6","#e67e22","#1abc9c","#ecf0f1"];
+  const HELMET_COLORS = ["#c0392b","#2980b9","#f1c40f","#27ae60","#8e44ad","#2c3e50","#e67e22","#ecf0f1"];
   let vehicleUid = 0;
 
   function vehicleSVG(type){
@@ -538,6 +541,8 @@
         <rect x="58" y="82" width="44" height="10" rx="2" fill="#2d3436"/>
       `, "0 0 160 110");
     }
+    const bodyColor = SCOOTER_COLORS[Math.floor(Math.random()*SCOOTER_COLORS.length)];
+    const helmetColor = HELMET_COLORS[Math.floor(Math.random()*HELMET_COLORS.length)];
     return svgWrap(`
       <defs>
         <radialGradient id="glowScooter" cx="50%" cy="50%" r="50%">
@@ -545,16 +550,21 @@
           <stop offset="35%" stop-color="rgba(255, 240, 180, 0.5)"/>
           <stop offset="100%" stop-color="rgba(255, 240, 180, 0)"/>
         </radialGradient>
+        <linearGradient id="scooterBody${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${shade(bodyColor,-10)}"/>
+          <stop offset="0.5" stop-color="${bodyColor}"/>
+          <stop offset="1" stop-color="${shade(bodyColor,20)}"/>
+        </linearGradient>
       </defs>
       <polygon points="60,62 -140,250 260,250 60,62" fill="url(#glowScooter)" opacity="0.2"/>
       <ellipse cx="60" cy="118" rx="42" ry="7" fill="rgba(0,0,0,0.6)"/>
       <circle cx="60" cy="110" r="20" fill="#0a0a0a"/>
-      <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="#34495e"/>
+      <path d="M42 106 Q44 74 60 72 Q76 74 78 106Z" fill="url(#scooterBody${uid})"/>
       <rect x="22" y="66" width="76" height="8" rx="4" fill="#7f8c8d"/>
       <circle cx="60" cy="62" r="16" fill="url(#glowScooter)"/>
       <circle cx="60" cy="62" r="6" fill="#fff"/>
-      <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="#2980b9"/>
-      <circle cx="60" cy="14" r="16" fill="#c0392b"/>
+      <path d="M42 34 Q60 15 78 34 Q80 46 60 48 Q40 46 42 34Z" fill="url(#scooterBody${uid})"/>
+      <circle cx="60" cy="14" r="16" fill="${helmetColor}"/>
       <path d="M48 12 Q60 22 72 12" stroke="#00e676" stroke-width="3.5" fill="none"/>
       <path d="M45 14 Q60 -4 75 14 Z" fill="#111"/>
     `, "0 -10 120 130");
@@ -633,7 +643,7 @@
                <path d="M140 40 L166 40 L160 50 L146 50 Z" fill="#07080a"/>`
             }
             <rect x="5" y="55" width="190" height="42" rx="2" fill="${shop.bg}" stroke="${shop.stroke}" stroke-width="3" style="filter: drop-shadow(0 0 5px ${shop.stroke});"/>
-            <text x="100" y="82" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
+            <text x="-100" y="82" transform="scale(-1,1)" font-family="'Microsoft JhengHei', sans-serif" font-weight="900" font-size="15" fill="${shop.text}" text-anchor="middle" letter-spacing="1" style="text-shadow: 0 0 4px ${shop.text};">${shop.name}</text>
             <rect x="0" y="97" width="200" height="13" fill="rgba(0,0,0,0.5)"/>
             ${i%2===0 ? lampSVG : ''}
           </g>
